@@ -1,3 +1,0 @@
-This will be an outline for the game that I am creating in Pygame!
-
-Game created by Joe Thompson, always open-source.
