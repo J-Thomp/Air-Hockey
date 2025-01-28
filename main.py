@@ -1,6 +1,3 @@
-# Air Hockey
-# Created by J-Thomp
-
 import arcade
 import math
 import random
@@ -11,7 +8,6 @@ SCREEN_TITLE = "Air Hockey"
 
 PADDLE_RADIUS = 30
 PUCK_RADIUS = 20
-PADDLE_SPEED = 5
 FRICTION = 0.99
 WALL_BOUNCE_DAMPING = 0.8
 
@@ -34,6 +30,12 @@ class AirHockeyGame(arcade.Window):
         # Scores
         self.player1_score = 0
         self.player2_score = 0
+        
+        # Mouse control variables
+        self.player1_holding = False
+        self.player2_holding = False
+        self.mouse_x = 0
+        self.mouse_y = 0
 
     def setup(self):
         # Create player paddles
@@ -41,14 +43,18 @@ class AirHockeyGame(arcade.Window):
             'x': SCREEN_WIDTH // 4,
             'y': SCREEN_HEIGHT // 2,
             'dx': 0,
-            'dy': 0
+            'dy': 0,
+            'target_x': SCREEN_WIDTH // 4,
+            'target_y': SCREEN_HEIGHT // 2
         }
         
         self.player2_paddle = {
             'x': 3 * SCREEN_WIDTH // 4,
             'y': SCREEN_HEIGHT // 2,
             'dx': 0,
-            'dy': 0
+            'dy': 0,
+            'target_x': 3 * SCREEN_WIDTH // 4,
+            'target_y': SCREEN_HEIGHT // 2
         }
         
         # Create puck
@@ -62,6 +68,101 @@ class AirHockeyGame(arcade.Window):
         # Reset scores
         self.player1_score = 0
         self.player2_score = 0
+        
+    def on_mouse_motion(self, x, y, dx, dy):
+        self.mouse_x = x
+        self.mouse_y = y
+        
+        # Update target position for held paddle
+        if self.player1_holding:
+            self.player1_paddle['target_x'] = x
+            self.player1_paddle['target_y'] = y
+        elif self.player2_holding:
+            self.player2_paddle['target_x'] = x
+            self.player2_paddle['target_y'] = y
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        # Check which paddle was clicked (using distance)
+        dist_to_player1 = math.sqrt((x - self.player1_paddle['x'])**2 + 
+                                  (y - self.player1_paddle['y'])**2)
+        dist_to_player2 = math.sqrt((x - self.player2_paddle['x'])**2 + 
+                                  (y - self.player2_paddle['y'])**2)
+        
+        if dist_to_player1 <= PADDLE_RADIUS:
+            self.player1_holding = True
+            self.player1_paddle['target_x'] = x
+            self.player1_paddle['target_y'] = y
+        elif dist_to_player2 <= PADDLE_RADIUS:
+            self.player2_holding = True
+            self.player2_paddle['target_x'] = x
+            self.player2_paddle['target_y'] = y
+
+    def on_mouse_release(self, x, y, button, modifiers):
+        self.player1_holding = False
+        self.player2_holding = False
+
+    def update_paddle_position(self, paddle, holding):
+        if holding:
+            # Calculate distance to target
+            dx = paddle['target_x'] - paddle['x']
+            dy = paddle['target_y'] - paddle['y']
+            
+            # Direct movement to target position
+            paddle['x'] = paddle['target_x']
+            paddle['y'] = paddle['target_y']
+            
+            # Update velocity for collision physics
+            paddle['dx'] = dx
+            paddle['dy'] = dy
+        else:
+            # When not held, gradually slow down
+            paddle['dx'] *= 0.8
+            paddle['dy'] *= 0.8
+
+    def on_update(self, delta_time):
+        # Update paddle positions based on mouse
+        self.update_paddle_position(self.player1_paddle, self.player1_holding)
+        self.update_paddle_position(self.player2_paddle, self.player2_holding)
+
+        # Constrain paddles to screen and their respective sides
+        self.player1_paddle['x'] = max(PADDLE_RADIUS, 
+            min(SCREEN_WIDTH // 2 - PADDLE_RADIUS, 
+                self.player1_paddle['x']))
+        self.player1_paddle['y'] = max(PADDLE_RADIUS, 
+            min(SCREEN_HEIGHT - PADDLE_RADIUS, 
+                self.player1_paddle['y']))
+        
+        self.player2_paddle['x'] = max(SCREEN_WIDTH // 2 + PADDLE_RADIUS, 
+            min(SCREEN_WIDTH - PADDLE_RADIUS, 
+                self.player2_paddle['x']))
+        self.player2_paddle['y'] = max(PADDLE_RADIUS, 
+            min(SCREEN_HEIGHT - PADDLE_RADIUS, 
+                self.player2_paddle['y']))
+
+        # Move puck
+        self.puck['x'] += self.puck['dx']
+        self.puck['y'] += self.puck['dy']
+        
+        # Apply friction to puck
+        self.puck['dx'] *= FRICTION
+        self.puck['dy'] *= FRICTION
+        
+        # Puck wall collision
+        if (self.puck['x'] - PUCK_RADIUS <= 0 or 
+            self.puck['x'] + PUCK_RADIUS >= SCREEN_WIDTH):
+            self.puck['dx'] *= -WALL_BOUNCE_DAMPING
+        
+        if (self.puck['y'] - PUCK_RADIUS <= 0 or 
+            self.puck['y'] + PUCK_RADIUS >= SCREEN_HEIGHT):
+            self.puck['dy'] *= -WALL_BOUNCE_DAMPING
+        
+        # Check for goals
+        self.check_goals()
+        
+        # Paddle-puck collision
+        self.handle_paddle_puck_collision(
+            self.player1_paddle, self.player2_paddle
+        )
 
     def on_draw(self):
         self.clear()
@@ -155,86 +256,6 @@ class AirHockeyGame(arcade.Window):
             arcade.color.WHITE, 
             20
         )
-
-    def on_update(self, delta_time):
-        # Move paddles
-        self.player1_paddle['x'] += self.player1_paddle['dx']
-        self.player1_paddle['y'] += self.player1_paddle['dy']
-        self.player2_paddle['x'] += self.player2_paddle['dx']
-        self.player2_paddle['y'] += self.player2_paddle['dy']
-
-        # Constrain paddles to screen
-        self.player1_paddle['x'] = max(PADDLE_RADIUS, 
-            min(SCREEN_WIDTH // 2 - PADDLE_RADIUS, 
-                self.player1_paddle['x']))
-        self.player1_paddle['y'] = max(PADDLE_RADIUS, 
-            min(SCREEN_HEIGHT - PADDLE_RADIUS, 
-                self.player1_paddle['y']))
-        
-        self.player2_paddle['x'] = max(SCREEN_WIDTH // 2 + PADDLE_RADIUS, 
-            min(SCREEN_WIDTH - PADDLE_RADIUS, 
-                self.player2_paddle['x']))
-        self.player2_paddle['y'] = max(PADDLE_RADIUS, 
-            min(SCREEN_HEIGHT - PADDLE_RADIUS, 
-                self.player2_paddle['y']))
-
-        # Move puck
-        self.puck['x'] += self.puck['dx']
-        self.puck['y'] += self.puck['dy']
-        
-        # Apply friction to puck
-        self.puck['dx'] *= FRICTION
-        self.puck['dy'] *= FRICTION
-        
-        # Puck wall collision
-        if (self.puck['x'] - PUCK_RADIUS <= 0 or 
-            self.puck['x'] + PUCK_RADIUS >= SCREEN_WIDTH):
-            self.puck['dx'] *= -WALL_BOUNCE_DAMPING
-        
-        if (self.puck['y'] - PUCK_RADIUS <= 0 or 
-            self.puck['y'] + PUCK_RADIUS >= SCREEN_HEIGHT):
-            self.puck['dy'] *= -WALL_BOUNCE_DAMPING
-        
-        # Check for goals
-        self.check_goals()
-        
-        # Paddle-puck collision
-        self.handle_paddle_puck_collision(
-            self.player1_paddle, self.player2_paddle
-        )
-
-    def on_key_press(self, key, modifiers):
-        # Player 1 controls (WASD)
-        if key == arcade.key.W:
-            self.player1_paddle['dy'] = PADDLE_SPEED
-        elif key == arcade.key.S:
-            self.player1_paddle['dy'] = -PADDLE_SPEED
-        elif key == arcade.key.A:
-            self.player1_paddle['dx'] = -PADDLE_SPEED
-        elif key == arcade.key.D:
-            self.player1_paddle['dx'] = PADDLE_SPEED
-        
-        # Player 2 controls (Arrow keys)
-        elif key == arcade.key.UP:
-            self.player2_paddle['dy'] = PADDLE_SPEED
-        elif key == arcade.key.DOWN:
-            self.player2_paddle['dy'] = -PADDLE_SPEED
-        elif key == arcade.key.LEFT:
-            self.player2_paddle['dx'] = -PADDLE_SPEED
-        elif key == arcade.key.RIGHT:
-            self.player2_paddle['dx'] = PADDLE_SPEED
-
-    def on_key_release(self, key, modifiers):
-        # Stop movement when key is released
-        if key in (arcade.key.W, arcade.key.S):
-            self.player1_paddle['dy'] = 0
-        elif key in (arcade.key.A, arcade.key.D):
-            self.player1_paddle['dx'] = 0
-        
-        if key in (arcade.key.UP, arcade.key.DOWN):
-            self.player2_paddle['dy'] = 0
-        elif key in (arcade.key.LEFT, arcade.key.RIGHT):
-            self.player2_paddle['dx'] = 0
 
     def handle_paddle_puck_collision(self, *paddles):
         for paddle in paddles:
