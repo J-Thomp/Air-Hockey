@@ -16,13 +16,13 @@ FRICTION = 0.99
 WALL_BOUNCE_DAMPING = 0.8
 
 # Goal constants
-GOAL_WIDTH = 200
-GOAL_HEIGHT = 20
+GOAL_WIDTH = 20
+GOAL_HEIGHT = 200
 
 class AirHockeyGame(arcade.Window):
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
-        arcade.set_background_color(arcade.color.WHITE)
+        arcade.set_background_color(arcade.color.BLACK)
 
         # Player paddles
         self.player1_paddle = None
@@ -72,7 +72,7 @@ class AirHockeyGame(arcade.Window):
             right=SCREEN_WIDTH, 
             top=SCREEN_HEIGHT, 
             bottom=0, 
-            color=arcade.color.BLACK, 
+            color=arcade.color.WHITE, 
             border_width=4
         )
         
@@ -82,7 +82,7 @@ class AirHockeyGame(arcade.Window):
             0, 
             SCREEN_WIDTH // 2, 
             SCREEN_HEIGHT, 
-            arcade.color.BLACK, 
+            arcade.color.WHITE, 
             2
         )
         
@@ -91,7 +91,7 @@ class AirHockeyGame(arcade.Window):
             SCREEN_WIDTH // 2, 
             SCREEN_HEIGHT // 2, 
             100, 
-            arcade.color.BLACK, 
+            arcade.color.WHITE, 
             2
         )
         
@@ -136,7 +136,7 @@ class AirHockeyGame(arcade.Window):
             self.puck['x'], 
             self.puck['y'], 
             PUCK_RADIUS, 
-            arcade.color.BLACK
+            arcade.color.WHITE
         )
         
         # Draw scores
@@ -144,7 +144,7 @@ class AirHockeyGame(arcade.Window):
             f"Player 1: {self.player1_score}", 
             10, 
             SCREEN_HEIGHT - 30, 
-            arcade.color.BLACK, 
+            arcade.color.WHITE, 
             20
         )
         
@@ -152,7 +152,7 @@ class AirHockeyGame(arcade.Window):
             f"Player 2: {self.player2_score}", 
             SCREEN_WIDTH - 150, 
             SCREEN_HEIGHT - 30, 
-            arcade.color.BLACK, 
+            arcade.color.WHITE, 
             20
         )
 
