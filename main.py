@@ -15,8 +15,12 @@ WALL_BOUNCE_DAMPING = 0.8
 GOAL_WIDTH = 170
 GOAL_HEIGHT = 10
 
+# AI constants
+AI_SPEED = 8
+AI_AGGRESSION = 0.7  # How aggressively AI moves to hit puck (0-1)
+AI_DEFENSE_POSITION = 0.75  # Default position (percentage of screen height)
+
 class AirHockeyGame(arcade.Window):
-    # __init__ and setup methods remain the same...
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
         arcade.set_background_color(arcade.color.BLACK)
@@ -32,7 +36,7 @@ class AirHockeyGame(arcade.Window):
         self.mouse_y = 0
 
     def setup(self):
-        # Create player paddles (adjusted for vertical layout)
+        # Player paddle
         self.player1_paddle = {
             'x': SCREEN_WIDTH // 2,
             'y': SCREEN_HEIGHT // 4,
@@ -42,6 +46,7 @@ class AirHockeyGame(arcade.Window):
             'target_y': SCREEN_HEIGHT // 4
         }
         
+        # AI paddle
         self.player2_paddle = {
             'x': SCREEN_WIDTH // 2,
             'y': 3 * SCREEN_HEIGHT // 4,
@@ -74,7 +79,7 @@ class AirHockeyGame(arcade.Window):
             border_width=4
         )
         
-        # Draw center line (horizontal now)
+        # Draw center line
         arcade.draw_line(
             0,
             SCREEN_HEIGHT // 2,
@@ -93,8 +98,7 @@ class AirHockeyGame(arcade.Window):
             2
         )
         
-        # Draw goal areas
-        # Player 1 goal (bottom)
+        # Draw goals
         arcade.draw_lrbt_rectangle_outline(
             left=SCREEN_WIDTH // 2 - GOAL_WIDTH // 2,
             right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
@@ -104,7 +108,6 @@ class AirHockeyGame(arcade.Window):
             border_width=4
         )
         
-        # Player 2 goal (top)
         arcade.draw_lrbt_rectangle_outline(
             left=SCREEN_WIDTH // 2 - GOAL_WIDTH // 2,
             right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
@@ -137,9 +140,9 @@ class AirHockeyGame(arcade.Window):
             arcade.color.GRAY
         )
         
-        # Draw scores (adjusted positions)
+        # Draw scores
         arcade.draw_text(
-            f"Player 1: {self.player1_score}",
+            f"Player: {self.player1_score}",
             10,
             10,
             arcade.color.WHITE,
@@ -147,12 +150,65 @@ class AirHockeyGame(arcade.Window):
         )
         
         arcade.draw_text(
-            f"Player 2: {self.player2_score}",
+            f"AI: {self.player2_score}",
             10,
             SCREEN_HEIGHT - 30,
             arcade.color.WHITE,
             20
         )
+
+    def update_ai(self):
+        # Default defensive position
+        target_x = SCREEN_WIDTH // 2
+        target_y = SCREEN_HEIGHT * AI_DEFENSE_POSITION
+
+        # Predict where puck will intersect AI's y-position
+        if self.puck['dy'] > 0:  # Puck moving upward
+            time_to_intersect = (target_y - self.puck['y']) / self.puck['dy']
+            predicted_x = self.puck['x'] + self.puck['dx'] * time_to_intersect
+
+            # Keep prediction within bounds
+            predicted_x = max(PADDLE_RADIUS, 
+                            min(SCREEN_WIDTH - PADDLE_RADIUS, predicted_x))
+
+            # Move towards predicted position
+            if abs(self.puck['dy']) > 1:  # Only if puck moving with significant speed
+                target_x = predicted_x
+
+        # If puck is in AI's half, move to intercept
+        if self.puck['y'] > SCREEN_HEIGHT // 2:
+            dx = self.puck['x'] - self.player2_paddle['x']
+            dy = self.puck['y'] - self.player2_paddle['y']
+            distance = math.sqrt(dx**2 + dy**2)
+
+            if distance > 0:
+                target_x = self.puck['x']
+                target_y = self.puck['y'] - PADDLE_RADIUS
+                
+                # Adjust aggression based on puck position
+                if self.puck['y'] > SCREEN_HEIGHT * 0.75:
+                    # More aggressive when puck is close to AI's goal
+                    target_x = self.puck['x'] + self.puck['dx'] * AI_AGGRESSION
+                    target_y = self.puck['y'] + self.puck['dy'] * AI_AGGRESSION
+
+        # Move AI paddle towards target
+        dx = target_x - self.player2_paddle['x']
+        dy = target_y - self.player2_paddle['y']
+        distance = math.sqrt(dx**2 + dy**2)
+
+        if distance > 0:
+            self.player2_paddle['dx'] = (dx / distance) * AI_SPEED
+            self.player2_paddle['dy'] = (dy / distance) * AI_SPEED
+            
+            # Update position
+            new_x = self.player2_paddle['x'] + self.player2_paddle['dx']
+            new_y = self.player2_paddle['y'] + self.player2_paddle['dy']
+            
+            # Constrain to top half of screen
+            self.player2_paddle['x'] = max(PADDLE_RADIUS, 
+                min(SCREEN_WIDTH - PADDLE_RADIUS, new_x))
+            self.player2_paddle['y'] = max(SCREEN_HEIGHT // 2 + PADDLE_RADIUS, 
+                min(SCREEN_HEIGHT - PADDLE_RADIUS, new_y))
 
     def update_paddle_position(self, paddle, holding):
         if holding:
@@ -173,24 +229,19 @@ class AirHockeyGame(arcade.Window):
             paddle['dy'] *= 0.8
 
     def on_update(self, delta_time):
-        # Update paddle positions based on mouse
+        # Update player paddle based on mouse
         self.update_paddle_position(self.player1_paddle, self.player1_holding)
-        self.update_paddle_position(self.player2_paddle, self.player2_holding)
+        
+        # Update AI
+        self.update_ai()
 
-        # Constrain paddles to screen and their respective sides
+        # Constrain player paddle
         self.player1_paddle['x'] = max(PADDLE_RADIUS, 
             min(SCREEN_WIDTH - PADDLE_RADIUS, 
                 self.player1_paddle['x']))
         self.player1_paddle['y'] = max(PADDLE_RADIUS, 
             min(SCREEN_HEIGHT // 2 - PADDLE_RADIUS, 
                 self.player1_paddle['y']))
-        
-        self.player2_paddle['x'] = max(PADDLE_RADIUS, 
-            min(SCREEN_WIDTH - PADDLE_RADIUS, 
-                self.player2_paddle['x']))
-        self.player2_paddle['y'] = max(SCREEN_HEIGHT // 2 + PADDLE_RADIUS, 
-            min(SCREEN_HEIGHT - PADDLE_RADIUS, 
-                self.player2_paddle['y']))
 
         # Move puck
         self.puck['x'] += self.puck['dx']
@@ -200,13 +251,9 @@ class AirHockeyGame(arcade.Window):
         self.puck['dx'] *= FRICTION
         self.puck['dy'] *= FRICTION
 
-        # Handle puck collisions with boundaries
+        # Handle puck collisions
         self.handle_puck_boundary_collision()
-        
-        # Check for goals
         self.check_goals()
-        
-        # Paddle-puck collision
         self.handle_paddle_puck_collision(
             self.player1_paddle, self.player2_paddle
         )
@@ -246,28 +293,18 @@ class AirHockeyGame(arcade.Window):
         if self.player1_holding:
             self.player1_paddle['target_x'] = x
             self.player1_paddle['target_y'] = y
-        elif self.player2_holding:
-            self.player2_paddle['target_x'] = x
-            self.player2_paddle['target_y'] = y
 
     def on_mouse_press(self, x, y, button, modifiers):
         dist_to_player1 = math.sqrt((x - self.player1_paddle['x'])**2 + 
                                   (y - self.player1_paddle['y'])**2)
-        dist_to_player2 = math.sqrt((x - self.player2_paddle['x'])**2 + 
-                                  (y - self.player2_paddle['y'])**2)
-        
+
         if dist_to_player1 <= PADDLE_RADIUS:
             self.player1_holding = True
             self.player1_paddle['target_x'] = x
             self.player1_paddle['target_y'] = y
-        elif dist_to_player2 <= PADDLE_RADIUS:
-            self.player2_holding = True
-            self.player2_paddle['target_x'] = x
-            self.player2_paddle['target_y'] = y
 
     def on_mouse_release(self, x, y, button, modifiers):
         self.player1_holding = False
-        self.player2_holding = False
 
     def handle_puck_boundary_collision(self):
         # Check and handle horizontal wall collisions
