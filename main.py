@@ -14,7 +14,7 @@ WALL_BOUNCE_DAMPING = 0.8
 
 # Adjust goal constants for vertical orientation
 GOAL_WIDTH = 200
-GOAL_HEIGHT = 20
+GOAL_HEIGHT = 10
 
 class AirHockeyGame(arcade.Window):
     def __init__(self):
@@ -119,7 +119,7 @@ class AirHockeyGame(arcade.Window):
             right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
             top=SCREEN_HEIGHT,
             bottom=SCREEN_HEIGHT - GOAL_HEIGHT,
-            color=arcade.color.LIGHT_BLUE,
+            color=arcade.color.BLUE,
             border_width=4
         )
         
@@ -143,7 +143,7 @@ class AirHockeyGame(arcade.Window):
             self.puck['x'],
             self.puck['y'],
             PUCK_RADIUS,
-            arcade.color.WHITE
+            arcade.color.GRAY
         )
         
         # Draw scores (adjusted positions)
