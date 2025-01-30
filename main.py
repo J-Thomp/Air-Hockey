@@ -30,8 +30,6 @@ class AirHockeyGame(arcade.Window):
         self.puck = None
         self.player1_score = 0
         self.player2_score = 0
-        self.player1_holding = False
-        self.player2_holding = False
         self.mouse_x = 0
         self.mouse_y = 0
 
@@ -42,8 +40,6 @@ class AirHockeyGame(arcade.Window):
             'y': SCREEN_HEIGHT // 4,
             'dx': 0,
             'dy': 0,
-            'target_x': SCREEN_WIDTH // 2,
-            'target_y': SCREEN_HEIGHT // 4
         }
         
         # AI paddle
@@ -228,20 +224,31 @@ class AirHockeyGame(arcade.Window):
             paddle['dx'] *= 0.8
             paddle['dy'] *= 0.8
 
+    def update_player_paddle(self):
+        # Calculate movement deltas
+        dx = self.mouse_x - self.player1_paddle['x']
+        dy = self.mouse_y - self.player1_paddle['y']
+        
+        # Update paddle position
+        self.player1_paddle['x'] = self.mouse_x
+        self.player1_paddle['y'] = self.mouse_y
+        
+        # Update velocity for collision physics
+        self.player1_paddle['dx'] = dx
+        self.player1_paddle['dy'] = dy
+        
+        # Constrain paddle to bottom half of screen and within boundaries
+        self.player1_paddle['x'] = max(PADDLE_RADIUS, 
+            min(SCREEN_WIDTH - PADDLE_RADIUS, self.player1_paddle['x']))
+        self.player1_paddle['y'] = max(PADDLE_RADIUS, 
+            min(SCREEN_HEIGHT // 2 - PADDLE_RADIUS, self.player1_paddle['y']))
+
     def on_update(self, delta_time):
         # Update player paddle based on mouse
-        self.update_paddle_position(self.player1_paddle, self.player1_holding)
+        self.update_player_paddle()
         
         # Update AI
         self.update_ai()
-
-        # Constrain player paddle
-        self.player1_paddle['x'] = max(PADDLE_RADIUS, 
-            min(SCREEN_WIDTH - PADDLE_RADIUS, 
-                self.player1_paddle['x']))
-        self.player1_paddle['y'] = max(PADDLE_RADIUS, 
-            min(SCREEN_HEIGHT // 2 - PADDLE_RADIUS, 
-                self.player1_paddle['y']))
 
         # Move puck
         self.puck['x'] += self.puck['dx']
@@ -289,22 +296,6 @@ class AirHockeyGame(arcade.Window):
     def on_mouse_motion(self, x, y, dx, dy):
         self.mouse_x = x
         self.mouse_y = y
-        
-        if self.player1_holding:
-            self.player1_paddle['target_x'] = x
-            self.player1_paddle['target_y'] = y
-
-    def on_mouse_press(self, x, y, button, modifiers):
-        dist_to_player1 = math.sqrt((x - self.player1_paddle['x'])**2 + 
-                                  (y - self.player1_paddle['y'])**2)
-
-        if dist_to_player1 <= PADDLE_RADIUS:
-            self.player1_holding = True
-            self.player1_paddle['target_x'] = x
-            self.player1_paddle['target_y'] = y
-
-    def on_mouse_release(self, x, y, button, modifiers):
-        self.player1_holding = False
 
     def handle_puck_boundary_collision(self):
         # Check and handle horizontal wall collisions
