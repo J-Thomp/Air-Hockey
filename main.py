@@ -12,8 +12,8 @@ PUCK_RADIUS = 20
 FRICTION = 0.99
 WALL_BOUNCE_DAMPING = 0.8
 
-GOAL_WIDTH = 200
-GOAL_HEIGHT = 20
+GOAL_WIDTH = 170
+GOAL_HEIGHT = 10
 
 class AirHockeyGame(arcade.Window):
     # __init__ and setup methods remain the same...
