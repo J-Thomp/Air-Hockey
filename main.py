@@ -2,9 +2,9 @@ import arcade
 import math
 import random
 
-# Switch width and height for vertical orientation
-SCREEN_WIDTH = 500
-SCREEN_HEIGHT = 700
+# Game constants remain the same
+SCREEN_WIDTH = 450
+SCREEN_HEIGHT = 680
 SCREEN_TITLE = "Air Hockey"
 
 PADDLE_RADIUS = 30
@@ -12,27 +12,20 @@ PUCK_RADIUS = 20
 FRICTION = 0.99
 WALL_BOUNCE_DAMPING = 0.8
 
-# Adjust goal constants for vertical orientation
 GOAL_WIDTH = 200
-GOAL_HEIGHT = 10
+GOAL_HEIGHT = 20
 
 class AirHockeyGame(arcade.Window):
+    # __init__ and setup methods remain the same...
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
         arcade.set_background_color(arcade.color.BLACK)
 
-        # Player paddles
         self.player1_paddle = None
         self.player2_paddle = None
-        
-        # Puck
         self.puck = None
-        
-        # Scores
         self.player1_score = 0
         self.player2_score = 0
-        
-        # Mouse control variables
         self.player1_holding = False
         self.player2_holding = False
         self.mouse_x = 0
@@ -58,7 +51,6 @@ class AirHockeyGame(arcade.Window):
             'target_y': 3 * SCREEN_HEIGHT // 4
         }
         
-        # Create puck
         self.puck = {
             'x': SCREEN_WIDTH // 2,
             'y': SCREEN_HEIGHT // 2,
@@ -66,7 +58,6 @@ class AirHockeyGame(arcade.Window):
             'dy': 0
         }
         
-        # Reset scores
         self.player1_score = 0
         self.player2_score = 0
 
@@ -208,15 +199,9 @@ class AirHockeyGame(arcade.Window):
         # Apply friction to puck
         self.puck['dx'] *= FRICTION
         self.puck['dy'] *= FRICTION
-        
-        # Puck wall collision
-        if (self.puck['x'] - PUCK_RADIUS <= 0 or 
-            self.puck['x'] + PUCK_RADIUS >= SCREEN_WIDTH):
-            self.puck['dx'] *= -WALL_BOUNCE_DAMPING
-        
-        if (self.puck['y'] - PUCK_RADIUS <= 0 or 
-            self.puck['y'] + PUCK_RADIUS >= SCREEN_HEIGHT):
-            self.puck['dy'] *= -WALL_BOUNCE_DAMPING
+
+        # Handle puck collisions with boundaries
+        self.handle_puck_boundary_collision()
         
         # Check for goals
         self.check_goals()
@@ -231,13 +216,14 @@ class AirHockeyGame(arcade.Window):
         GOAL_LEFT = SCREEN_WIDTH // 2 - GOAL_WIDTH // 2
         GOAL_RIGHT = SCREEN_WIDTH // 2 + GOAL_WIDTH // 2
         
-        if (self.puck['y'] <= GOAL_HEIGHT and 
+        # Check if puck is completely past the goal line
+        if (self.puck['y'] + PUCK_RADIUS <= 0 and 
             GOAL_LEFT <= self.puck['x'] <= GOAL_RIGHT):
             # Player 2 scores
             self.player2_score += 1
             self.reset_puck()
         
-        elif (self.puck['y'] >= SCREEN_HEIGHT - GOAL_HEIGHT and 
+        elif (self.puck['y'] - PUCK_RADIUS >= SCREEN_HEIGHT and 
               GOAL_LEFT <= self.puck['x'] <= GOAL_RIGHT):
             # Player 1 scores
             self.player1_score += 1
@@ -283,6 +269,35 @@ class AirHockeyGame(arcade.Window):
         self.player1_holding = False
         self.player2_holding = False
 
+    def handle_puck_boundary_collision(self):
+        # Check and handle horizontal wall collisions
+        if self.puck['x'] - PUCK_RADIUS <= 0:
+            self.puck['x'] = PUCK_RADIUS
+            self.puck['dx'] *= -WALL_BOUNCE_DAMPING
+        elif self.puck['x'] + PUCK_RADIUS >= SCREEN_WIDTH:
+            self.puck['x'] = SCREEN_WIDTH - PUCK_RADIUS
+            self.puck['dx'] *= -WALL_BOUNCE_DAMPING
+
+        # Check and handle vertical wall collisions
+        # Don't bounce if within goal area
+        GOAL_LEFT = SCREEN_WIDTH // 2 - GOAL_WIDTH // 2
+        GOAL_RIGHT = SCREEN_WIDTH // 2 + GOAL_WIDTH // 2
+
+        if self.puck['y'] - PUCK_RADIUS <= 0:
+            if not (GOAL_LEFT <= self.puck['x'] <= GOAL_RIGHT):
+                self.puck['y'] = PUCK_RADIUS
+                self.puck['dy'] *= -WALL_BOUNCE_DAMPING
+        elif self.puck['y'] + PUCK_RADIUS >= SCREEN_HEIGHT:
+            if not (GOAL_LEFT <= self.puck['x'] <= GOAL_RIGHT):
+                self.puck['y'] = SCREEN_HEIGHT - PUCK_RADIUS
+                self.puck['dy'] *= -WALL_BOUNCE_DAMPING
+
+        # Add minimum speed threshold to prevent extremely slow movement
+        total_speed = math.sqrt(self.puck['dx']**2 + self.puck['dy']**2)
+        if total_speed < 0.1:
+            self.puck['dx'] = 0
+            self.puck['dy'] = 0
+
     def handle_paddle_puck_collision(self, *paddles):
         for paddle in paddles:
             dx = self.puck['x'] - paddle['x']
@@ -290,9 +305,19 @@ class AirHockeyGame(arcade.Window):
             distance = math.sqrt(dx**2 + dy**2)
             
             if distance <= PADDLE_RADIUS + PUCK_RADIUS:
+                # Calculate collision angle and normalize the direction
                 angle = math.atan2(dy, dx)
-                speed = math.sqrt(self.puck['dx']**2 + self.puck['dy']**2)
                 
+                # Move puck outside of paddle to prevent sticking
+                overlap = PADDLE_RADIUS + PUCK_RADIUS - distance
+                self.puck['x'] += math.cos(angle) * overlap
+                self.puck['y'] += math.sin(angle) * overlap
+                
+                # Calculate new velocity
+                speed = math.sqrt(self.puck['dx']**2 + self.puck['dy']**2)
+                speed = max(speed, 5)  # Minimum speed after collision
+                
+                # Combine paddle and puck momentum
                 self.puck['dx'] = (math.cos(angle) * speed * 1.2 + 
                                  paddle['dx'] * 0.5)
                 self.puck['dy'] = (math.sin(angle) * speed * 1.2 + 
