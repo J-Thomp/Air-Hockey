@@ -33,6 +33,10 @@ class AirHockeyGame(arcade.Window):
         self.mouse_x = 0
         self.mouse_y = 0
 
+        # Load Sound Effects
+        self.menu_select_sound = arcade.load_sound("sounds/vgmenuselect.wav")
+
+
     def setup(self):
         # Player paddle
         self.player1_paddle = {
@@ -276,13 +280,15 @@ class AirHockeyGame(arcade.Window):
             # Player 2 scores
             self.player2_score += 1
             self.reset_puck()
+            arcade.play_sound(self.menu_select_sound)
         
         elif (self.puck['y'] - PUCK_RADIUS >= SCREEN_HEIGHT and 
               GOAL_LEFT <= self.puck['x'] <= GOAL_RIGHT):
             # Player 1 scores
             self.player1_score += 1
             self.reset_puck()
-
+            arcade.play_sound(self.menu_select_sound)
+            
     def reset_puck(self):
         # Reset puck to center with random initial velocity
         self.puck = {
