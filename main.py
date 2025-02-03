@@ -40,7 +40,10 @@ class AirHockeyGame(arcade.Window):
         # Menu items
         self.current_state = MENU_STATE
         self.menu_items = ["Start Game", "Quit"]
-        self.selected_item = 0
+        self.selected_item = None
+
+        # Store menu item positions for hit detection
+        self.menu_positions = []
 
         # Load Sound Effects
         self.menu_select_sound = arcade.load_sound("sounds/vgmenuselect.wav")
@@ -80,18 +83,65 @@ class AirHockeyGame(arcade.Window):
             anchor_y="center"
         )
 
-        # Draw menu items
+        # Clear menu positions list
+        self.menu_positions = []
+
+        # Draw menu items and store their positions
         for i, item in enumerate(self.menu_items):
+            y_pos = SCREEN_HEIGHT * 0.4 - i * 50
             color = arcade.color.YELLOW if i == self.selected_item else arcade.color.WHITE
+            
+            # Store position and size for hit detection
+            text_width = len(item) * 15  # Approximate width based on text length
+            text_height = 30
+            self.menu_positions.append({
+                'item': i,
+                'x': SCREEN_WIDTH // 2 - text_width // 2,
+                'y': y_pos - text_height // 2,
+                'width': text_width,
+                'height': text_height
+            })
+            
             arcade.draw_text(
                 item,
                 SCREEN_WIDTH // 2,
-                SCREEN_HEIGHT * 0.4 - i * 50,
+                y_pos,
                 color,
                 30,
                 anchor_x="center",
                 anchor_y="center"
             )
+
+    def check_mouse_over_menu(self, x, y):
+        for pos in self.menu_positions:
+            if (pos['x'] <= x <= pos['x'] + pos['width'] and
+                pos['y'] <= y <= pos['y'] + pos['height']):
+                return pos['item']
+        return None
+
+    def on_mouse_motion(self, x, y, dx, dy):
+        self.mouse_x = x
+        self.mouse_y = y
+        
+        if self.current_state == MENU_STATE:
+            # Update selected item based on mouse position
+            self.selected_item = self.check_mouse_over_menu(x, y)
+
+    def on_mouse_press(self, x, y, button, modifiers):
+        if self.current_state == MENU_STATE and button == arcade.MOUSE_BUTTON_LEFT:
+            # Check which menu item was clicked
+            clicked_item = self.check_mouse_over_menu(x, y)
+            if clicked_item is not None:
+                if clicked_item == 0:  # Start Game
+                    self.current_state = GAME_STATE
+                    self.setup()
+                    arcade.play_sound(self.menu_select_sound)
+                elif clicked_item == 1:  # Quit
+                    arcade.close_window()
+
+    def on_key_press(self, key, modifiers):
+        if self.current_state == GAME_STATE and key == arcade.key.ESCAPE:
+            self.current_state = MENU_STATE
 
     def on_draw(self):
         self.clear()
@@ -99,6 +149,7 @@ class AirHockeyGame(arcade.Window):
         if self.current_state == MENU_STATE:
             self.draw_menu()
         else:
+            # Original game drawing code remains the same
             arcade.draw_lrbt_rectangle_outline(
                 left=0, 
                 right=SCREEN_WIDTH, 
@@ -127,7 +178,7 @@ class AirHockeyGame(arcade.Window):
                 2
             )
             
-            # Draw goals
+            # Draw goals and other game elements
             arcade.draw_lrbt_rectangle_outline(
                 left=SCREEN_WIDTH // 2 - GOAL_WIDTH // 2,
                 right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
