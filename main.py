@@ -20,6 +20,10 @@ AI_SPEED = 8
 AI_AGGRESSION = 0.7  # How aggressively AI moves to hit puck (0-1)
 AI_DEFENSE_POSITION = 0.75  # Default position (percentage of screen height)
 
+# Game states
+MENU_STATE = "menu"
+GAME_STATE = "game"
+
 class AirHockeyGame(arcade.Window):
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
@@ -33,9 +37,13 @@ class AirHockeyGame(arcade.Window):
         self.mouse_x = 0
         self.mouse_y = 0
 
+        # Menu items
+        self.current_state = MENU_STATE
+        self.menu_items = ["Start Game", "Quit"]
+        self.selected_item = 0
+
         # Load Sound Effects
         self.menu_select_sound = arcade.load_sound("sounds/vgmenuselect.wav")
-
 
     def setup(self):
         # Player paddle
@@ -56,106 +64,127 @@ class AirHockeyGame(arcade.Window):
             'target_y': 3 * SCREEN_HEIGHT // 4
         }
         
-        self.puck = {
-            'x': SCREEN_WIDTH // 2,
-            'y': SCREEN_HEIGHT // 2,
-            'dx': 0,
-            'dy': 0
-        }
-        
+        self.reset_puck()
         self.player1_score = 0
         self.player2_score = 0
+
+    def draw_menu(self):
+        # Draw title
+        arcade.draw_text(
+            "AIR HOCKEY",
+            SCREEN_WIDTH // 2,
+            SCREEN_HEIGHT * 0.7,
+            arcade.color.WHITE,
+            44,
+            anchor_x="center",
+            anchor_y="center"
+        )
+
+        # Draw menu items
+        for i, item in enumerate(self.menu_items):
+            color = arcade.color.YELLOW if i == self.selected_item else arcade.color.WHITE
+            arcade.draw_text(
+                item,
+                SCREEN_WIDTH // 2,
+                SCREEN_HEIGHT * 0.4 - i * 50,
+                color,
+                30,
+                anchor_x="center",
+                anchor_y="center"
+            )
 
     def on_draw(self):
         self.clear()
         
-        # Draw court
-        arcade.draw_lrbt_rectangle_outline(
-            left=0, 
-            right=SCREEN_WIDTH, 
-            top=SCREEN_HEIGHT, 
-            bottom=0, 
-            color=arcade.color.WHITE, 
-            border_width=4
-        )
-        
-        # Draw center line
-        arcade.draw_line(
-            0,
-            SCREEN_HEIGHT // 2,
-            SCREEN_WIDTH,
-            SCREEN_HEIGHT // 2,
-            arcade.color.WHITE,
-            2
-        )
-        
-        # Draw center circle
-        arcade.draw_circle_outline(
-            SCREEN_WIDTH // 2,
-            SCREEN_HEIGHT // 2,
-            100,
-            arcade.color.WHITE,
-            2
-        )
-        
-        # Draw goals
-        arcade.draw_lrbt_rectangle_outline(
-            left=SCREEN_WIDTH // 2 - GOAL_WIDTH // 2,
-            right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
-            top=GOAL_HEIGHT,
-            bottom=0,
-            color=arcade.color.RED,
-            border_width=4
-        )
-        
-        arcade.draw_lrbt_rectangle_outline(
-            left=SCREEN_WIDTH // 2 - GOAL_WIDTH // 2,
-            right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
-            top=SCREEN_HEIGHT,
-            bottom=SCREEN_HEIGHT - GOAL_HEIGHT,
-            color=arcade.color.BLUE,
-            border_width=4
-        )
-        
-        # Draw paddles
-        arcade.draw_circle_filled(
-            self.player1_paddle['x'],
-            self.player1_paddle['y'],
-            PADDLE_RADIUS,
-            arcade.color.RED
-        )
-        
-        arcade.draw_circle_filled(
-            self.player2_paddle['x'],
-            self.player2_paddle['y'],
-            PADDLE_RADIUS,
-            arcade.color.BLUE
-        )
-        
-        # Draw puck
-        arcade.draw_circle_filled(
-            self.puck['x'],
-            self.puck['y'],
-            PUCK_RADIUS,
-            arcade.color.GRAY
-        )
-        
-        # Draw scores
-        arcade.draw_text(
-            f"Player: {self.player1_score}",
-            10,
-            10,
-            arcade.color.WHITE,
-            20
-        )
-        
-        arcade.draw_text(
-            f"AI: {self.player2_score}",
-            10,
-            SCREEN_HEIGHT - 30,
-            arcade.color.WHITE,
-            20
-        )
+        if self.current_state == MENU_STATE:
+            self.draw_menu()
+        else:
+            arcade.draw_lrbt_rectangle_outline(
+                left=0, 
+                right=SCREEN_WIDTH, 
+                top=SCREEN_HEIGHT, 
+                bottom=0, 
+                color=arcade.color.WHITE, 
+                border_width=4
+            )
+            
+            # Draw center line
+            arcade.draw_line(
+                0,
+                SCREEN_HEIGHT // 2,
+                SCREEN_WIDTH,
+                SCREEN_HEIGHT // 2,
+                arcade.color.WHITE,
+                2
+            )
+            
+            # Draw center circle
+            arcade.draw_circle_outline(
+                SCREEN_WIDTH // 2,
+                SCREEN_HEIGHT // 2,
+                100,
+                arcade.color.WHITE,
+                2
+            )
+            
+            # Draw goals
+            arcade.draw_lrbt_rectangle_outline(
+                left=SCREEN_WIDTH // 2 - GOAL_WIDTH // 2,
+                right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
+                top=GOAL_HEIGHT,
+                bottom=0,
+                color=arcade.color.RED,
+                border_width=4
+            )
+            
+            arcade.draw_lrbt_rectangle_outline(
+                left=SCREEN_WIDTH // 2 - GOAL_WIDTH // 2,
+                right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
+                top=SCREEN_HEIGHT,
+                bottom=SCREEN_HEIGHT - GOAL_HEIGHT,
+                color=arcade.color.BLUE,
+                border_width=4
+            )
+            
+            # Draw paddles
+            arcade.draw_circle_filled(
+                self.player1_paddle['x'],
+                self.player1_paddle['y'],
+                PADDLE_RADIUS,
+                arcade.color.RED
+            )
+            
+            arcade.draw_circle_filled(
+                self.player2_paddle['x'],
+                self.player2_paddle['y'],
+                PADDLE_RADIUS,
+                arcade.color.BLUE
+            )
+            
+            # Draw puck
+            arcade.draw_circle_filled(
+                self.puck['x'],
+                self.puck['y'],
+                PUCK_RADIUS,
+                arcade.color.GRAY
+            )
+            
+            # Draw scores
+            arcade.draw_text(
+                f"Player: {self.player1_score}",
+                10,
+                10,
+                arcade.color.WHITE,
+                20
+            )
+            
+            arcade.draw_text(
+                f"AI: {self.player2_score}",
+                10,
+                SCREEN_HEIGHT - 30,
+                arcade.color.WHITE,
+                20
+            )
 
     def update_ai(self):
         # Default defensive position
@@ -248,26 +277,45 @@ class AirHockeyGame(arcade.Window):
             min(SCREEN_HEIGHT // 2 - PADDLE_RADIUS, self.player1_paddle['y']))
 
     def on_update(self, delta_time):
-        # Update player paddle based on mouse
-        self.update_player_paddle()
-        
-        # Update AI
-        self.update_ai()
+        if self.current_state == GAME_STATE:
+            # Original game update code
+            self.update_player_paddle()
+            self.update_ai()
+            
+            # Move puck
+            self.puck['x'] += self.puck['dx']
+            self.puck['y'] += self.puck['dy']
+            
+            # Apply friction to puck
+            self.puck['dx'] *= FRICTION
+            self.puck['dy'] *= FRICTION
 
-        # Move puck
-        self.puck['x'] += self.puck['dx']
-        self.puck['y'] += self.puck['dy']
-        
-        # Apply friction to puck
-        self.puck['dx'] *= FRICTION
-        self.puck['dy'] *= FRICTION
+            # Handle collisions
+            self.handle_puck_boundary_collision()
+            self.check_goals()
+            self.handle_paddle_puck_collision(
+                self.player1_paddle, self.player2_paddle
+            )
 
-        # Handle puck collisions
-        self.handle_puck_boundary_collision()
-        self.check_goals()
-        self.handle_paddle_puck_collision(
-            self.player1_paddle, self.player2_paddle
-        )
+    def on_key_press(self, key, modifiers):
+        if self.current_state == MENU_STATE:
+            if key == arcade.key.UP:
+                self.selected_item = (self.selected_item - 1) % len(self.menu_items)
+                arcade.play_sound(self.menu_select_sound)
+            elif key == arcade.key.DOWN:
+                self.selected_item = (self.selected_item + 1) % len(self.menu_items)
+                arcade.play_sound(self.menu_select_sound)
+            elif key == arcade.key.ENTER:
+                if self.selected_item == 0:  # Start Game
+                    self.current_state = GAME_STATE
+                    self.setup()
+                    arcade.play_sound(self.menu_select_sound)
+                elif self.selected_item == 1:  # Quit
+                    arcade.close_window()
+        elif self.current_state == GAME_STATE:
+            if key == arcade.key.ESCAPE:
+                self.current_state = MENU_STATE
+                self.selected_item = 0
 
     def check_goals(self):
         # Check for goals (adjusted for vertical orientation)
@@ -288,7 +336,7 @@ class AirHockeyGame(arcade.Window):
             self.player1_score += 1
             self.reset_puck()
             arcade.play_sound(self.menu_select_sound)
-            
+
     def reset_puck(self):
         # Reset puck to center with random initial velocity
         self.puck = {
