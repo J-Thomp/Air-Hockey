@@ -23,6 +23,7 @@ AI_DEFENSE_POSITION = 0.75  # Default position (percentage of screen height)
 # Game states
 MENU_STATE = "menu"
 GAME_STATE = "game"
+SETTINGS_STATE = "settings"
 
 class AirHockeyGame(arcade.Window):
     def __init__(self):
@@ -37,12 +38,23 @@ class AirHockeyGame(arcade.Window):
         self.mouse_x = 0
         self.mouse_y = 0
 
-        # Menu items
-        self.current_state = MENU_STATE
-        self.menu_items = ["Start Game", "Quit"]
-        self.selected_item = None
+        # Game settings
+        self.settings = {
+            'ai_difficulty': 1,  # 0: Easy, 1: Medium, 2: Hard
+            'sound_volume': 1.0,
+            'max_score': 7
+        }
 
-        # Store menu item positions for hit detection
+        # Menu states
+        self.current_state = MENU_STATE
+        self.menu_items = ["Start Game", "Settings", "Quit"]
+        self.settings_items = [
+            "AI Difficulty", 
+            "Sound Volume", 
+            "Max Score", 
+            "Back"
+        ]
+        self.selected_item = None
         self.menu_positions = []
 
         # Load Sound Effects
@@ -71,8 +83,23 @@ class AirHockeyGame(arcade.Window):
         self.player1_score = 0
         self.player2_score = 0
 
+        # Adjust AI based on difficulty setting
+        global AI_SPEED, AI_AGGRESSION
+        if self.settings['ai_difficulty'] == 0:  # Easy
+            AI_SPEED = 5
+            AI_AGGRESSION = 0.5
+        elif self.settings['ai_difficulty'] == 1:  # Medium
+            AI_SPEED = 8
+            AI_AGGRESSION = 0.7
+        else:  # Hard
+            AI_SPEED = 10
+            AI_AGGRESSION = 0.9
+
     def draw_menu(self):
-        # Draw title
+        # Clear menu positions
+        self.menu_positions = []
+
+        # Title
         arcade.draw_text(
             "AIR HOCKEY",
             SCREEN_WIDTH // 2,
@@ -83,25 +110,33 @@ class AirHockeyGame(arcade.Window):
             anchor_y="center"
         )
 
-        # Clear menu positions list
-        self.menu_positions = []
+        # Draw menu items based on current state
+        if self.current_state == MENU_STATE:
+            menu_items = self.menu_items
+        elif self.current_state == SETTINGS_STATE:
+            menu_items = self.settings_items
 
-        # Draw menu items and store their positions
-        for i, item in enumerate(self.menu_items):
+        for i, item in enumerate(menu_items):
             y_pos = SCREEN_HEIGHT * 0.4 - i * 50
-            color = arcade.color.YELLOW if i == self.selected_item else arcade.color.WHITE
             
-            # Store position and size for hit detection
-            text_width = len(item) * 15  # Approximate width based on text length
-            text_height = 30
-            self.menu_positions.append({
-                'item': i,
-                'x': SCREEN_WIDTH // 2 - text_width // 2,
-                'y': y_pos - text_height // 2,
-                'width': text_width,
-                'height': text_height
-            })
-            
+            # Determine item color
+            if self.selected_item == i:
+                color = arcade.color.YELLOW
+            else:
+                color = arcade.color.WHITE
+
+            # Add special handling for settings items
+            if self.current_state == SETTINGS_STATE:
+                # Add current setting value for specific items
+                if item == "AI Difficulty":
+                    difficulty_names = ["Easy", "Medium", "Hard"]
+                    item += f": {difficulty_names[self.settings['ai_difficulty']]}"
+                elif item == "Sound Volume":
+                    item += f": {int(self.settings['sound_volume'] * 100)}%"
+                elif item == "Max Score":
+                    item += f": {self.settings['max_score']}"
+
+            # Draw text
             arcade.draw_text(
                 item,
                 SCREEN_WIDTH // 2,
@@ -111,6 +146,17 @@ class AirHockeyGame(arcade.Window):
                 anchor_x="center",
                 anchor_y="center"
             )
+
+            # Store menu item positions for click detection
+            text_width = len(item) * 15
+            text_height = 30
+            self.menu_positions.append({
+                'item': i,
+                'x': SCREEN_WIDTH // 2 - text_width // 2,
+                'y': y_pos - text_height // 2,
+                'width': text_width,
+                'height': text_height
+            })
 
     def check_mouse_over_menu(self, x, y):
         for pos in self.menu_positions:
@@ -123,21 +169,58 @@ class AirHockeyGame(arcade.Window):
         self.mouse_x = x
         self.mouse_y = y
         
-        if self.current_state == MENU_STATE:
+        if self.current_state in [MENU_STATE, SETTINGS_STATE]:
             # Update selected item based on mouse position
             self.selected_item = self.check_mouse_over_menu(x, y)
 
     def on_mouse_press(self, x, y, button, modifiers):
-        if self.current_state == MENU_STATE and button == arcade.MOUSE_BUTTON_LEFT:
+        if button == arcade.MOUSE_BUTTON_LEFT:
             # Check which menu item was clicked
             clicked_item = self.check_mouse_over_menu(x, y)
+            
             if clicked_item is not None:
-                if clicked_item == 0:  # Start Game
-                    self.current_state = GAME_STATE
-                    self.setup()
-                    arcade.play_sound(self.menu_select_sound)
-                elif clicked_item == 1:  # Quit
-                    arcade.close_window()
+                arcade.play_sound(self.menu_select_sound)
+                
+                if self.current_state == MENU_STATE:
+                    if clicked_item == 0:  # Start Game
+                        self.current_state = GAME_STATE
+                        self.setup()
+                    elif clicked_item == 1:  # Settings
+                        self.current_state = SETTINGS_STATE
+                        self.selected_item = None
+                    elif clicked_item == 2:  # Quit
+                        arcade.close_window()
+                
+                elif self.current_state == SETTINGS_STATE:
+                    if clicked_item == 0:  # AI Difficulty
+                        # Cycle through AI difficulty levels
+                        self.settings['ai_difficulty'] = (
+                            self.settings['ai_difficulty'] + 1
+                        ) % 3
+                    
+                    elif clicked_item == 1:  # Sound Volume
+                        # Cycle through volume levels
+                        volume_levels = [0.0, 0.5, 1.0]
+                        current_index = volume_levels.index(
+                            self.settings['sound_volume']
+                        )
+                        self.settings['sound_volume'] = volume_levels[
+                            (current_index + 1) % len(volume_levels)
+                        ]
+                    
+                    elif clicked_item == 2:  # Max Score
+                        # Cycle through max score options
+                        max_scores = [5, 7, 10, 15]
+                        current_index = max_scores.index(
+                            self.settings['max_score']
+                        )
+                        self.settings['max_score'] = max_scores[
+                            (current_index + 1) % len(max_scores)
+                        ]
+                    
+                    elif clicked_item == 3:  # Back to main menu
+                        self.current_state = MENU_STATE
+                        self.selected_item = None
 
     def on_key_press(self, key, modifiers):
         if self.current_state == GAME_STATE and key == arcade.key.ESCAPE:
@@ -146,10 +229,10 @@ class AirHockeyGame(arcade.Window):
     def on_draw(self):
         self.clear()
         
-        if self.current_state == MENU_STATE:
+        if self.current_state in [MENU_STATE, SETTINGS_STATE]:
             self.draw_menu()
         else:
-            # Original game drawing code remains the same
+            # Original game drawing code (same as before)
             arcade.draw_lrbt_rectangle_outline(
                 left=0, 
                 right=SCREEN_WIDTH, 
@@ -178,7 +261,7 @@ class AirHockeyGame(arcade.Window):
                 2
             )
             
-            # Draw goals and other game elements
+            # Draw goals
             arcade.draw_lrbt_rectangle_outline(
                 left=SCREEN_WIDTH // 2 - GOAL_WIDTH // 2,
                 right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
@@ -329,7 +412,7 @@ class AirHockeyGame(arcade.Window):
 
     def on_update(self, delta_time):
         if self.current_state == GAME_STATE:
-            # Original game update code
+            # Existing game update logic
             self.update_player_paddle()
             self.update_ai()
             
@@ -369,7 +452,7 @@ class AirHockeyGame(arcade.Window):
                 self.selected_item = 0
 
     def check_goals(self):
-        # Check for goals (adjusted for vertical orientation)
+        # Modify goal checking to use max_score setting
         GOAL_LEFT = SCREEN_WIDTH // 2 - GOAL_WIDTH // 2
         GOAL_RIGHT = SCREEN_WIDTH // 2 + GOAL_WIDTH // 2
         
@@ -380,6 +463,10 @@ class AirHockeyGame(arcade.Window):
             self.player2_score += 1
             self.reset_puck()
             arcade.play_sound(self.menu_select_sound)
+            
+            # Check for game end
+            if self.player2_score >= self.settings['max_score']:
+                self.current_state = MENU_STATE
         
         elif (self.puck['y'] - PUCK_RADIUS >= SCREEN_HEIGHT and 
               GOAL_LEFT <= self.puck['x'] <= GOAL_RIGHT):
@@ -387,6 +474,10 @@ class AirHockeyGame(arcade.Window):
             self.player1_score += 1
             self.reset_puck()
             arcade.play_sound(self.menu_select_sound)
+            
+            # Check for game end
+            if self.player1_score >= self.settings['max_score']:
+                self.current_state = MENU_STATE
 
     def reset_puck(self):
         # Reset puck to center with random initial velocity
