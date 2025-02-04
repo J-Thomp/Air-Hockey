@@ -104,8 +104,18 @@ class AirHockeyGame(arcade.Window):
             "AIR HOCKEY",
             SCREEN_WIDTH // 2,
             SCREEN_HEIGHT * 0.7,
-            arcade.color.WHITE,
+            arcade.color.BALL_BLUE,
             44,
+            anchor_x="center",
+            anchor_y="center"
+        )
+
+        arcade.draw_text(
+            "Created by J-Thomp",
+            SCREEN_WIDTH // 1.2,
+            SCREEN_HEIGHT * 0.02,
+            arcade.color.ORANGE_PEEL,
+            10,
             anchor_x="center",
             anchor_y="center"
         )
