@@ -2,7 +2,7 @@ import arcade
 import math
 import random
 
-# Game constants remain the same
+# Game constants
 SCREEN_WIDTH = 450
 SCREEN_HEIGHT = 680
 SCREEN_TITLE = "Air Hockey"
@@ -161,26 +161,48 @@ class AirHockeyGame(arcade.Window):
                     difficulty_names = ["Easy", "Medium", "Hard"]
                     display_item += f": {difficulty_names[self.settings['ai_difficulty']]}"
                 elif item == "Player Color":
-                    display_item += f": {self.settings['player_color']}"
+                    selected_color = self.settings['player_color']
+                    display_item += f": {selected_color}"
+                    # Draw the color name in its actual color
+                    arcade.draw_text(
+                        display_item,
+                        SCREEN_WIDTH // 2,
+                        y_pos,
+                        PADDLE_COLORS[selected_color],
+                        30,
+                        anchor_x="center",
+                        anchor_y="center"
+                    )
                 elif item == "AI Color":
-                    display_item += f": {self.settings['ai_color']}"
+                    selected_color = self.settings['ai_color']
+                    display_item += f": {selected_color}"
+                    # Draw the color name in its actual color
+                    arcade.draw_text(
+                        display_item,
+                        SCREEN_WIDTH // 2,
+                        y_pos,
+                        PADDLE_COLORS[selected_color],
+                        30,
+                        anchor_x="center",
+                        anchor_y="center"
+                    )
                 elif item == "Max Score":
                     display_item += f": {self.settings['max_score']}"
 
-
-            # Draw text
-            arcade.draw_text(
-                display_item,
-                SCREEN_WIDTH // 2,
-                y_pos,
-                color,
-                30,
-                anchor_x="center",
-                anchor_y="center"
-            )
+            # Draw text for non-color settings or if it hasn't been drawn yet
+            if item not in ["Player Color", "AI Color"]:
+                arcade.draw_text(
+                    display_item,
+                    SCREEN_WIDTH // 2,
+                    y_pos,
+                    color,
+                    30,
+                    anchor_x="center",
+                    anchor_y="center"
+                )
 
             # Store menu item positions for click detection
-            text_width = len(item) * 15
+            text_width = len(display_item) * 15  # Account for the full text width
             text_height = 30
             self.menu_positions.append({
                 'item': i,
