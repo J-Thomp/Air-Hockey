@@ -25,6 +25,16 @@ MENU_STATE = "menu"
 GAME_STATE = "game"
 SETTINGS_STATE = "settings"
 
+# Available paddle colors
+PADDLE_COLORS = {
+    "Red": arcade.color.RED,
+    "Blue": arcade.color.BLUE,
+    "Green": arcade.color.GREEN,
+    "Yellow": arcade.color.YELLOW,
+    "Purple": arcade.color.PURPLE,
+    "Orange": arcade.color.ORANGE
+}
+
 class AirHockeyGame(arcade.Window):
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
@@ -41,7 +51,8 @@ class AirHockeyGame(arcade.Window):
         # Game settings
         self.settings = {
             'ai_difficulty': 1,  # 0: Easy, 1: Medium, 2: Hard
-            'sound_volume': 1.0,
+            'player_color': "Red",  # Default player color
+            'ai_color': "Blue",    # Default AI color
             'max_score': 7
         }
 
@@ -50,7 +61,8 @@ class AirHockeyGame(arcade.Window):
         self.menu_items = ["Start Game", "Settings", "Quit"]
         self.settings_items = [
             "AI Difficulty", 
-            "Sound Volume", 
+            "Player Color", 
+            "AI Color", 
             "Max Score", 
             "Back"
         ]
@@ -95,6 +107,13 @@ class AirHockeyGame(arcade.Window):
             AI_SPEED = 10
             AI_AGGRESSION = 0.9
 
+    def get_next_color(self, current_color):
+        """Get the next color in the PADDLE_COLORS dictionary."""
+        color_names = list(PADDLE_COLORS.keys())
+        current_index = color_names.index(current_color)
+        next_index = (current_index + 1) % len(color_names)
+        return color_names[next_index]
+
     def draw_menu(self):
         # Clear menu positions
         self.menu_positions = []
@@ -136,19 +155,22 @@ class AirHockeyGame(arcade.Window):
                 color = arcade.color.WHITE
 
             # Add special handling for settings items
+            display_item = item
             if self.current_state == SETTINGS_STATE:
-                # Add current setting value for specific items
                 if item == "AI Difficulty":
                     difficulty_names = ["Easy", "Medium", "Hard"]
-                    item += f": {difficulty_names[self.settings['ai_difficulty']]}"
-                elif item == "Sound Volume":
-                    item += f": {int(self.settings['sound_volume'] * 100)}%"
+                    display_item += f": {difficulty_names[self.settings['ai_difficulty']]}"
+                elif item == "Player Color":
+                    display_item += f": {self.settings['player_color']}"
+                elif item == "AI Color":
+                    display_item += f": {self.settings['ai_color']}"
                 elif item == "Max Score":
-                    item += f": {self.settings['max_score']}"
+                    display_item += f": {self.settings['max_score']}"
+
 
             # Draw text
             arcade.draw_text(
-                item,
+                display_item,
                 SCREEN_WIDTH // 2,
                 y_pos,
                 color,
@@ -185,7 +207,6 @@ class AirHockeyGame(arcade.Window):
 
     def on_mouse_press(self, x, y, button, modifiers):
         if button == arcade.MOUSE_BUTTON_LEFT:
-            # Check which menu item was clicked
             clicked_item = self.check_mouse_over_menu(x, y)
             
             if clicked_item is not None:
@@ -203,23 +224,21 @@ class AirHockeyGame(arcade.Window):
                 
                 elif self.current_state == SETTINGS_STATE:
                     if clicked_item == 0:  # AI Difficulty
-                        # Cycle through AI difficulty levels
                         self.settings['ai_difficulty'] = (
                             self.settings['ai_difficulty'] + 1
                         ) % 3
                     
-                    elif clicked_item == 1:  # Sound Volume
-                        # Cycle through volume levels
-                        volume_levels = [0.0, 0.5, 1.0]
-                        current_index = volume_levels.index(
-                            self.settings['sound_volume']
+                    elif clicked_item == 1:  # Player Color
+                        self.settings['player_color'] = self.get_next_color(
+                            self.settings['player_color']
                         )
-                        self.settings['sound_volume'] = volume_levels[
-                            (current_index + 1) % len(volume_levels)
-                        ]
                     
-                    elif clicked_item == 2:  # Max Score
-                        # Cycle through max score options
+                    elif clicked_item == 2:  # AI Color
+                        self.settings['ai_color'] = self.get_next_color(
+                            self.settings['ai_color']
+                        )
+                    
+                    elif clicked_item == 3:  # Max Score
                         max_scores = [5, 7, 10, 15]
                         current_index = max_scores.index(
                             self.settings['max_score']
@@ -228,7 +247,7 @@ class AirHockeyGame(arcade.Window):
                             (current_index + 1) % len(max_scores)
                         ]
                     
-                    elif clicked_item == 3:  # Back to main menu
+                    elif clicked_item == 4:  # Back to main menu
                         self.current_state = MENU_STATE
                         self.selected_item = None
 
@@ -242,7 +261,7 @@ class AirHockeyGame(arcade.Window):
         if self.current_state in [MENU_STATE, SETTINGS_STATE]:
             self.draw_menu()
         else:
-            # Original game drawing code (same as before)
+            # Original game drawing code with updated paddle colors
             arcade.draw_lrbt_rectangle_outline(
                 left=0, 
                 right=SCREEN_WIDTH, 
@@ -271,13 +290,13 @@ class AirHockeyGame(arcade.Window):
                 2
             )
             
-            # Draw goals
+            # Draw goals with player colors
             arcade.draw_lrbt_rectangle_outline(
                 left=SCREEN_WIDTH // 2 - GOAL_WIDTH // 2,
                 right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
                 top=GOAL_HEIGHT,
                 bottom=0,
-                color=arcade.color.RED,
+                color=PADDLE_COLORS[self.settings['player_color']],
                 border_width=4
             )
             
@@ -286,23 +305,23 @@ class AirHockeyGame(arcade.Window):
                 right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
                 top=SCREEN_HEIGHT,
                 bottom=SCREEN_HEIGHT - GOAL_HEIGHT,
-                color=arcade.color.BLUE,
+                color=PADDLE_COLORS[self.settings['ai_color']],
                 border_width=4
             )
             
-            # Draw paddles
+            # Draw paddles with selected colors
             arcade.draw_circle_filled(
                 self.player1_paddle['x'],
                 self.player1_paddle['y'],
                 PADDLE_RADIUS,
-                arcade.color.RED
+                PADDLE_COLORS[self.settings['player_color']]
             )
             
             arcade.draw_circle_filled(
                 self.player2_paddle['x'],
                 self.player2_paddle['y'],
                 PADDLE_RADIUS,
-                arcade.color.BLUE
+                PADDLE_COLORS[self.settings['ai_color']]
             )
             
             # Draw puck
@@ -318,7 +337,7 @@ class AirHockeyGame(arcade.Window):
                 f"Player: {self.player1_score}",
                 10,
                 10,
-                arcade.color.WHITE,
+                PADDLE_COLORS[self.settings['player_color']],
                 20
             )
             
@@ -326,7 +345,7 @@ class AirHockeyGame(arcade.Window):
                 f"AI: {self.player2_score}",
                 10,
                 SCREEN_HEIGHT - 30,
-                arcade.color.WHITE,
+                PADDLE_COLORS[self.settings['ai_color']],
                 20
             )
 
