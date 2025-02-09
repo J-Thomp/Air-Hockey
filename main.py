@@ -71,6 +71,7 @@ class AirHockeyGame(arcade.Window):
 
         # Load Sound Effects
         self.menu_select_sound = arcade.load_sound("sounds/vgmenuselect.wav")
+        self.goal_sound = arcade.load_sound("sounds/goal_sound.wav")
 
     def setup(self):
         # Player paddle
@@ -510,7 +511,7 @@ class AirHockeyGame(arcade.Window):
             # Player 2 scores
             self.player2_score += 1
             self.reset_puck()
-            arcade.play_sound(self.menu_select_sound)
+            arcade.play_sound(self.goal_sound)
             
             # Check for game end
             if self.player2_score >= self.settings['max_score']:
@@ -521,7 +522,7 @@ class AirHockeyGame(arcade.Window):
             # Player 1 scores
             self.player1_score += 1
             self.reset_puck()
-            arcade.play_sound(self.menu_select_sound)
+            arcade.play_sound(self.goal_sound)
             
             # Check for game end
             if self.player1_score >= self.settings['max_score']:
