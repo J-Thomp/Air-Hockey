@@ -51,8 +51,8 @@ class AirHockeyGame(arcade.Window):
         # Game settings
         self.settings = {
             'ai_difficulty': 1,  # 0: Easy, 1: Medium, 2: Hard
-            'player_color': "Red",  # Default player color
             'ai_color': "Blue",    # Default AI color
+            'player_color': "Red",  # Default player color
             'max_score': 7
         }
 
@@ -61,8 +61,8 @@ class AirHockeyGame(arcade.Window):
         self.menu_items = ["Start Game", "Settings", "Quit"]
         self.settings_items = [
             "AI Difficulty", 
-            "Player Color", 
             "AI Color", 
+            "Player Color", 
             "Max Score", 
             "Back"
         ]
@@ -160,8 +160,8 @@ class AirHockeyGame(arcade.Window):
                 if item == "AI Difficulty":
                     difficulty_names = ["Easy", "Medium", "Hard"]
                     display_item += f": {difficulty_names[self.settings['ai_difficulty']]}"
-                elif item == "Player Color":
-                    selected_color = self.settings['player_color']
+                elif item == "AI Color":
+                    selected_color = self.settings['ai_color']
                     display_item += f": {selected_color}"
                     # Draw the color name in its actual color
                     arcade.draw_text(
@@ -173,8 +173,8 @@ class AirHockeyGame(arcade.Window):
                         anchor_x="center",
                         anchor_y="center"
                     )
-                elif item == "AI Color":
-                    selected_color = self.settings['ai_color']
+                elif item == "Player Color":
+                    selected_color = self.settings['player_color']
                     display_item += f": {selected_color}"
                     # Draw the color name in its actual color
                     arcade.draw_text(
@@ -190,7 +190,7 @@ class AirHockeyGame(arcade.Window):
                     display_item += f": {self.settings['max_score']}"
 
             # Draw text for non-color settings or if it hasn't been drawn yet
-            if item not in ["Player Color", "AI Color"]:
+            if item not in ["AI Color", "Player Color"]:
                 arcade.draw_text(
                     display_item,
                     SCREEN_WIDTH // 2,
@@ -249,17 +249,14 @@ class AirHockeyGame(arcade.Window):
                         self.settings['ai_difficulty'] = (
                             self.settings['ai_difficulty'] + 1
                         ) % 3
-                    
-                    elif clicked_item == 1:  # Player Color
-                        self.settings['player_color'] = self.get_next_color(
-                            self.settings['player_color']
-                        )
-                    
-                    elif clicked_item == 2:  # AI Color
+                    elif clicked_item == 1:  # AI Color
                         self.settings['ai_color'] = self.get_next_color(
                             self.settings['ai_color']
                         )
-                    
+                    elif clicked_item == 2:  # Player Color
+                        self.settings['player_color'] = self.get_next_color(
+                            self.settings['player_color']
+                        )
                     elif clicked_item == 3:  # Max Score
                         max_scores = [5, 7, 10, 15]
                         current_index = max_scores.index(
