@@ -58,6 +58,9 @@ class AirHockeyGame(arcade.Window):
         
         # Game over message
         self.game_over_message = ""
+        
+        # Debug mode for visualizing boundaries
+        self.debug_mode = False
 
         # Create and load sound effects
         utils.create_default_sound_files()
@@ -115,8 +118,8 @@ class AirHockeyGame(arcade.Window):
             arcade.draw_lrbt_rectangle_outline(
                 left=SCREEN_WIDTH // 2 - GOAL_WIDTH // 2,
                 right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
-                top=GOAL_HEIGHT,
                 bottom=0,
+                top=GOAL_HEIGHT,
                 color=PADDLE_COLORS[self.settings['player_color']],
                 border_width=4
             )
@@ -124,8 +127,8 @@ class AirHockeyGame(arcade.Window):
             arcade.draw_lrbt_rectangle_outline(
                 left=SCREEN_WIDTH // 2 - GOAL_WIDTH // 2,
                 right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
-                top=SCREEN_HEIGHT,
                 bottom=SCREEN_HEIGHT - GOAL_HEIGHT,
+                top=SCREEN_HEIGHT,
                 color=PADDLE_COLORS[self.settings['ai_color']],
                 border_width=4
             )
@@ -185,6 +188,59 @@ class AirHockeyGame(arcade.Window):
                     arcade.color.WHITE,
                     20
                 )
+            
+            # Debug visualization of boundaries
+            if self.debug_mode:
+                self.draw_debug_boundaries()
+
+    def draw_debug_boundaries(self):
+        """Draw debug visualization for boundary detection"""
+        # Get corner positions
+        corner_positions = utils.get_rink_corner_positions()
+        
+        # Draw corner detection regions
+        for corner_x, corner_y in corner_positions:
+            # Draw corner valid area
+            arcade.draw_circle_outline(
+                corner_x, corner_y, 
+                utils.CORNER_RADIUS - self.puck.radius, 
+                arcade.color.RED, 1
+            )
+            
+            # Draw corner region bounds
+            if corner_x < SCREEN_WIDTH // 2:  # Left side
+                arcade.draw_line(
+                    utils.CORNER_RADIUS, corner_y,
+                    0, corner_y,
+                    arcade.color.YELLOW, 1
+                )
+            else:  # Right side
+                arcade.draw_line(
+                    SCREEN_WIDTH - utils.CORNER_RADIUS, corner_y,
+                    SCREEN_WIDTH, corner_y,
+                    arcade.color.YELLOW, 1
+                )
+                
+            if corner_y < SCREEN_HEIGHT // 2:  # Bottom side
+                arcade.draw_line(
+                    corner_x, utils.CORNER_RADIUS,
+                    corner_x, 0,
+                    arcade.color.YELLOW, 1
+                )
+            else:  # Top side
+                arcade.draw_line(
+                    corner_x, SCREEN_HEIGHT - utils.CORNER_RADIUS,
+                    corner_x, SCREEN_HEIGHT,
+                    arcade.color.YELLOW, 1
+                )
+                
+        # Draw paddle valid boundary for player
+        y_boundary = SCREEN_HEIGHT // 2 - self.player1_paddle.radius
+        arcade.draw_line(
+            0, y_boundary,
+            SCREEN_WIDTH, y_boundary,
+            arcade.color.GREEN, 1
+        )
 
     def on_update(self, delta_time):
         """Movement and game logic"""
@@ -235,13 +291,17 @@ class AirHockeyGame(arcade.Window):
             
             # Handle paddle-puck collisions
             collision, player_particles = self.player1_paddle.check_collision_with_puck(
-                self.puck, self.paddle_hit_sound
+                self.puck, 
+                self.paddle_hit_sound,
+                PADDLE_COLORS[self.settings['player_color']]
             )
             if player_particles:
                 self.particles.extend(player_particles)
                 
             collision, ai_particles = self.player2_paddle.check_collision_with_puck(
-                self.puck, self.paddle_hit_sound
+                self.puck, 
+                self.paddle_hit_sound,
+                PADDLE_COLORS[self.settings['ai_color']]
             )
             if ai_particles:
                 self.particles.extend(ai_particles)
@@ -388,6 +448,10 @@ class AirHockeyGame(arcade.Window):
 
     def on_key_press(self, key, modifiers):
         """Called whenever a key is pressed"""
+        if key == arcade.key.D and modifiers & arcade.key.MOD_CTRL:
+            # Toggle debug mode with Ctrl+D
+            self.debug_mode = not self.debug_mode
+            
         if self.current_state == GAME_STATE:
             if key == arcade.key.ESCAPE:
                 self.current_state = PAUSE_STATE
