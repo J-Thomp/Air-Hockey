@@ -197,9 +197,36 @@ class Paddle:
         self.freeze_timer = 0   # Timer for freeze duration
         self.opponent_paddle = None  # Reference to opponent paddle
         
+    def on_update(self, delta_time):
+        """Update paddle's status effects"""
+        # Handle freeze timer
+        if self.is_frozen:
+            self.freeze_timer -= delta_time
+            if self.freeze_timer <= 0:
+                self.is_frozen = False
+                self.freeze_timer = 0
+        
+    def update_player(self, mouse_x, mouse_y):
+        """Update player paddle based on mouse position"""
+        # Calculate movement deltas
+        self.dx = mouse_x - self.x
+        self.dy = mouse_y - self.y
+        
+        # Skip movement if frozen
+        if self.is_frozen:
+            return
+            
+        # Update paddle position with constraint
+        if self.can_cross_midline:
+            # Can go anywhere in rink
+            self.x, self.y = utils.constrain_to_rink(mouse_x, mouse_y, self.radius)
+        else:
+            # Constrained to bottom half
+            self.x, self.y = utils.constrain_to_rink(mouse_x, mouse_y, self.radius, 'bottom')
+    
     def update_ai(self, puck, ai_difficulty):
         """Update AI paddle movement"""
-        # Skip update if frozen
+        # If AI is frozen by power-up, don't move
         if self.is_frozen:
             return []
             
@@ -242,8 +269,14 @@ class Paddle:
                 # Update position with constraint
                 new_x = self.x + self.dx
                 new_y = self.y + self.dy
-                self.x, self.y = new_x, new_y
-                self.constrain_to_rink(top_half=True)
+                
+                # Check if we can cross midline
+                if self.can_cross_midline:
+                    # Constrain to full rink
+                    self.x, self.y = utils.constrain_to_rink(new_x, new_y, self.radius)
+                else:
+                    # Constrain to top half
+                    self.x, self.y = utils.constrain_to_rink(new_x, new_y, self.radius, 'top')
                 
             # Skip the rest of the AI logic if in corner mode
             return []
@@ -300,139 +333,23 @@ class Paddle:
             move_y = (dy / distance) * speed
             
             # Update position
-            self.x += move_x
-            self.y += move_y
-            
-            # Constrain to boundaries
-            self.constrain_to_rink(top_half=True)
-            
-            # Update velocity for collision physics
-            self.dx = move_x
-            self.dy = move_y
-        
-        return []
-        
-    def update_player(self, mouse_x, mouse_y):
-        """Update player paddle based on mouse position"""
-        # Calculate movement deltas
-        self.dx = mouse_x - self.x
-        self.dy = mouse_y - self.y
-        
-        # Update paddle position with constraint
-        self.x, self.y = utils.constrain_to_rink(mouse_x, mouse_y, self.radius, 'bottom')
-    
-    def update_ai(self, puck, ai_difficulty):
-        """Update AI paddle movement"""
-        # If AI is frozen by power-up, don't move
-        if self.power_up_active and puck.freeze_opponent:
-            return []
-            
-        # Default defensive position
-        target_x = SCREEN_WIDTH // 2
-        target_y = SCREEN_HEIGHT * AI_DEFENSE_POSITION
-        
-        # Enhanced corner handling
-        corner_index = utils.is_point_in_corner_region(puck.x, puck.y)
-        is_in_corner = corner_index >= 0 and puck.y > SCREEN_HEIGHT / 2
-        
-        if is_in_corner:
-            # For corner situations, move more directly toward the puck
-            corner_angle = math.atan2(puck.y - self.y, puck.x - self.x)
-            
-            # Calculate a position slightly offset from the puck to hit it toward center
-            offset_distance = self.radius + PUCK_RADIUS + 5
-            
-            if puck.x < SCREEN_WIDTH // 2:
-                # Left corner - approach from right
-                target_x = puck.x + offset_distance * 0.5
-            else:
-                # Right corner - approach from left
-                target_x = puck.x - offset_distance * 0.5
-                
-            target_y = puck.y - 5  # Slightly above the puck
-            
-            # Increase AI speed for corner retrieval
-            ai_speed = AI_SPEED * 1.5
-            
-            # Move directly toward the calculated position
-            dx = target_x - self.x
-            dy = target_y - self.y
-            distance = math.sqrt(dx**2 + dy**2)
-            
-            if distance > 0:
-                self.dx = (dx / distance) * ai_speed
-                self.dy = (dy / distance) * ai_speed
-                
-                # Update position with constraint
-                new_x = self.x + self.dx
-                new_y = self.y + self.dy
-                self.x, self.y = utils.constrain_to_rink(new_x, new_y, self.radius, 'top')
-                
-            # Skip the rest of the AI logic if in corner mode
-            return []
-        
-        # Predict where puck will intersect AI's y-position
-        if puck.dy > 0:  # Puck moving upward
-            time_to_intersect = (target_y - puck.y) / puck.dy if puck.dy != 0 else 0
-            predicted_x = puck.x + puck.dx * time_to_intersect
-
-            # Keep prediction within bounds
-            predicted_x = max(self.radius, 
-                            min(SCREEN_WIDTH - self.radius, predicted_x))
-
-            # Move towards predicted position
-            if abs(puck.dy) > 1:  # Only if puck moving with significant speed
-                target_x = predicted_x
-
-        # If puck is in AI's half, move to intercept
-        if puck.y > SCREEN_HEIGHT // 2:
-            dx = puck.x - self.x
-            dy = puck.y - self.y
-            distance = math.sqrt(dx**2 + dy**2)
-
-            if distance > 0:
-                target_x = puck.x
-                target_y = puck.y - self.radius
-                
-                # Adjust aggression based on puck position
-                if puck.y > SCREEN_HEIGHT * 0.75:
-                    # More aggressive when puck is close to AI's goal
-                    target_x = puck.x + puck.dx * AI_AGGRESSION
-                    target_y = puck.y + puck.dy * AI_AGGRESSION
-
-        # Move AI paddle towards target
-        dx = target_x - self.x
-        dy = target_y - self.y
-        distance = math.sqrt(dx**2 + dy**2)
-
-        if distance > 0:
-            # Apply speed boost if power-up is active
-            speed_multiplier = 1.5 if (self.power_up_active and puck.speed_boost) else 1.0
-            
-            # Adjust base speed by difficulty
-            base_speed = AI_SPEED
-            if ai_difficulty == 0:  # Easy
-                base_speed = 5
-            elif ai_difficulty == 2:  # Hard
-                base_speed = 10
-            
-            speed = base_speed * speed_multiplier
-            
-            # Normalize movement vector
-            move_x = (dx / distance) * speed
-            move_y = (dy / distance) * speed
-            
-            # Update position with constraint
             new_x = self.x + move_x
             new_y = self.y + move_y
-            self.x, self.y = utils.constrain_to_rink(new_x, new_y, self.radius, 'top')
+            
+            # Check if we can cross midline
+            if self.can_cross_midline:
+                # Constrain to full rink
+                self.x, self.y = utils.constrain_to_rink(new_x, new_y, self.radius)
+            else:
+                # Constrain to top half
+                self.x, self.y = utils.constrain_to_rink(new_x, new_y, self.radius, 'top')
             
             # Update velocity for collision physics
             self.dx = move_x
             self.dy = move_y
         
         return []
-    
+        
     def draw(self, color, power_up_active=False):
         """Draw the paddle with optional power-up effects"""
         # Add glow effect if power-up is active
@@ -456,6 +373,19 @@ class Paddle:
             self.radius,
             color
         )
+        
+        # Draw freeze visual indicator if frozen
+        if self.is_frozen:
+            # Draw freeze indicator (snowflake symbol or ice effect)
+            arcade.draw_text(
+                "❄",
+                self.x,
+                self.y,
+                arcade.color.CYAN,
+                20,
+                anchor_x="center",
+                anchor_y="center"
+            )
         
     def check_collision_with_puck(self, puck, sound=None, paddle_color=arcade.color.WHITE):
         """Check and handle collision with puck"""
@@ -556,6 +486,7 @@ class PowerUp:
             if paddle.opponent_paddle:
                 paddle.opponent_paddle.is_frozen = True
                 paddle.opponent_paddle.freeze_timer = 3.0  # 3 seconds freeze duration
+                puck.freeze_opponent = True  # Mark that freeze is active
             
     def draw(self):
         """Draw the power-up"""

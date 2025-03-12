@@ -85,6 +85,11 @@ class AirHockeyGame(arcade.Window):
         self.player2_paddle = Paddle(is_ai=True)
         self.puck = Puck()
         
+        # Connect paddles to each other for freeze power-up
+        self.player1_paddle.opponent_paddle = self.player2_paddle
+        self.player2_paddle.opponent_paddle = self.player1_paddle
+        self.puck.opponent_paddle = self.player2_paddle  # For freeze power-up
+        
         # Reset scores
         self.player1_score = 0
         self.player2_score = 0
@@ -434,7 +439,7 @@ class AirHockeyGame(arcade.Window):
                     self.puck.speed_boost = False
                 if hasattr(self.puck, 'freeze_opponent'):
                     self.puck.freeze_opponent = False
-                    
+                        
         # Check for power-up collisions
         for i in range(len(self.power_ups) - 1, -1, -1):
             # Check player paddle collision
