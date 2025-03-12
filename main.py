@@ -17,6 +17,9 @@ class AirHockeyGame(arcade.Window):
     def __init__(self):
         super().__init__(SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE)
         arcade.set_background_color(arcade.color.BLACK)
+        
+        # Set update rate for performance (60 FPS cap)
+        self.set_update_rate(1/60)
 
         # Game objects
         self.player1_paddle = None
@@ -38,6 +41,7 @@ class AirHockeyGame(arcade.Window):
         
         # Particle effects
         self.particles = []
+        self.max_particles = 30  # Limit maximum particles for performance
         
         # Power-up system
         self.power_up_timer = 0
@@ -267,6 +271,15 @@ class AirHockeyGame(arcade.Window):
     def on_update(self, delta_time):
         """Movement and game logic"""
         if self.current_state == GAME_STATE:
+            # Performance optimization: Limit particles
+            if len(self.particles) > self.max_particles:
+                # If we have too many particles, remove the oldest ones
+                self.particles = self.particles[-self.max_particles:]
+            
+            # Update paddle freeze states
+            self.player1_paddle.on_update(delta_time)
+            self.player2_paddle.on_update(delta_time)
+            
             # Update game timer if active
             if self.timer_active:
                 self.game_time += delta_time
@@ -292,41 +305,43 @@ class AirHockeyGame(arcade.Window):
             
             # Try to unstick from corners
             was_stuck_in_corner, corner_particles = self.puck.check_for_stuck_in_corner()
-            if corner_particles:
-                self.particles.extend(corner_particles)
+            if corner_particles and len(self.particles) < self.max_particles:
+                self.particles.extend(corner_particles[:self.max_particles - len(self.particles)])
             
             # Update player paddle
             self.player1_paddle.update_player(self.mouse_x, self.mouse_y)
             
             # Update AI paddle
             ai_particles = self.player2_paddle.update_ai(self.puck, self.settings['ai_difficulty'])
-            if ai_particles:
-                self.particles.extend(ai_particles)
+            if ai_particles and len(self.particles) < self.max_particles:
+                self.particles.extend(ai_particles[:self.max_particles - len(self.particles)])
             
             # Update puck
             self.puck.update()
             
             # Handle puck-wall collisions with rounded corners
             collision, wall_particles = self.puck.handle_boundary_collision(self.wall_hit_sound)
-            if wall_particles:
-                self.particles.extend(wall_particles)
+            if wall_particles and len(self.particles) < self.max_particles:
+                self.particles.extend(wall_particles[:self.max_particles - len(self.particles)])
             
-            # Handle paddle-puck collisions
+            # Handle paddle-puck collisions with reduced particles for performance
             collision, player_particles = self.player1_paddle.check_collision_with_puck(
                 self.puck, 
                 self.paddle_hit_sound,
                 PADDLE_COLORS[self.settings['player_color']]
             )
-            if player_particles:
-                self.particles.extend(player_particles)
+            if player_particles and len(self.particles) < self.max_particles:
+                # Use only 5 particles instead of 10 for better performance
+                self.particles.extend(player_particles[:min(5, self.max_particles - len(self.particles))])
                 
             collision, ai_particles = self.player2_paddle.check_collision_with_puck(
                 self.puck, 
                 self.paddle_hit_sound,
                 PADDLE_COLORS[self.settings['ai_color']]
             )
-            if ai_particles:
-                self.particles.extend(ai_particles)
+            if ai_particles and len(self.particles) < self.max_particles:
+                # Use only 5 particles instead of 10 for better performance
+                self.particles.extend(ai_particles[:min(5, self.max_particles - len(self.particles))])
             
             # Check for goals
             goal_scorer = self.puck.is_in_goal()
@@ -340,9 +355,10 @@ class AirHockeyGame(arcade.Window):
                         SCREEN_WIDTH // 2, 
                         SCREEN_HEIGHT - GOAL_HEIGHT // 2, 
                         PADDLE_COLORS[self.settings['player_color']], 
-                        30
+                        15  # Reduced from 30 for performance
                     )
-                    self.particles.extend(goal_particles)
+                    if len(self.particles) < self.max_particles:
+                        self.particles.extend(goal_particles[:self.max_particles - len(self.particles)])
                     
                     # Check for score-based game end
                     if self.settings['game_mode'] == 0 and self.player1_score >= self.settings['max_score']:
@@ -358,9 +374,10 @@ class AirHockeyGame(arcade.Window):
                         SCREEN_WIDTH // 2, 
                         GOAL_HEIGHT // 2, 
                         PADDLE_COLORS[self.settings['ai_color']], 
-                        30
+                        15  # Reduced from 30 for performance
                     )
-                    self.particles.extend(goal_particles)
+                    if len(self.particles) < self.max_particles:
+                        self.particles.extend(goal_particles[:self.max_particles - len(self.particles)])
                     
                     # Check for score-based game end
                     if self.settings['game_mode'] == 0 and self.player2_score >= self.settings['max_score']:
@@ -383,7 +400,7 @@ class AirHockeyGame(arcade.Window):
         """Update power-ups and handle power-up collisions"""
         # Spawn new power-ups periodically
         self.power_up_timer += delta_time
-        if self.power_up_timer > 15 and len(self.power_ups) < 2:  # Max 2 power-ups at once
+        if self.power_up_timer > 10 and len(self.power_ups) < 2:  # More frequent spawning (10 seconds) and up to 2 power-ups
             self.power_ups.append(PowerUp())
             self.power_up_timer = 0
         
@@ -399,6 +416,7 @@ class AirHockeyGame(arcade.Window):
                 self.player1_paddle.power_up_active = False
                 # Reset player paddle
                 self.player1_paddle.radius = PADDLE_RADIUS
+                self.player1_paddle.can_cross_midline = False
                 if hasattr(self.puck, 'speed_boost'):
                     self.puck.speed_boost = False
                 if hasattr(self.puck, 'freeze_opponent'):
@@ -411,6 +429,7 @@ class AirHockeyGame(arcade.Window):
                 self.player2_paddle.power_up_active = False
                 # Reset AI paddle
                 self.player2_paddle.radius = PADDLE_RADIUS
+                self.player2_paddle.can_cross_midline = False
                 if hasattr(self.puck, 'speed_boost'):
                     self.puck.speed_boost = False
                 if hasattr(self.puck, 'freeze_opponent'):

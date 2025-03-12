@@ -11,6 +11,7 @@ from constants import (
 class Puck:
     def __init__(self):
         self.reset()
+        self.opponent_paddle = None  # Reference to opponent paddle for freeze power-up
         
     def reset(self):
         """Reset puck to center with random initial velocity"""
@@ -31,6 +32,16 @@ class Puck:
         # Apply friction
         self.dx *= FRICTION
         self.dy *= FRICTION
+        
+        # Apply maximum speed limit
+        MAX_SPEED = 75  # Maximum speed for puck (increased from 15 to 75)
+        current_speed = math.sqrt(self.dx**2 + self.dy**2)
+        
+        if current_speed > MAX_SPEED:
+            # Scale down the velocity to the maximum speed
+            speed_factor = MAX_SPEED / current_speed
+            self.dx *= speed_factor
+            self.dy *= speed_factor
         
         # Apply a minimum velocity threshold to completely stop the puck
         # when it's barely moving to prevent drift
@@ -181,6 +192,125 @@ class Paddle:
         self.target_y = self.y
         self.power_up_active = False
         self.power_up_time = 0
+        self.can_cross_midline = False  # New property for speed power-up
+        self.is_frozen = False  # New property for freeze power-up
+        self.freeze_timer = 0   # Timer for freeze duration
+        self.opponent_paddle = None  # Reference to opponent paddle
+        
+    def update_ai(self, puck, ai_difficulty):
+        """Update AI paddle movement"""
+        # Skip update if frozen
+        if self.is_frozen:
+            return []
+            
+        # Default defensive position
+        target_x = SCREEN_WIDTH // 2
+        target_y = SCREEN_HEIGHT * AI_DEFENSE_POSITION
+        
+        # Enhanced corner handling
+        corner_index = utils.is_point_in_corner_region(puck.x, puck.y)
+        is_in_corner = corner_index >= 0 and puck.y > SCREEN_HEIGHT / 2
+        
+        if is_in_corner:
+            # For corner situations, move more directly toward the puck
+            corner_angle = math.atan2(puck.y - self.y, puck.x - self.x)
+            
+            # Calculate a position slightly offset from the puck to hit it toward center
+            offset_distance = self.radius + PUCK_RADIUS + 5
+            
+            if puck.x < SCREEN_WIDTH // 2:
+                # Left corner - approach from right
+                target_x = puck.x + offset_distance * 0.5
+            else:
+                # Right corner - approach from left
+                target_x = puck.x - offset_distance * 0.5
+                
+            target_y = puck.y - 5  # Slightly above the puck
+            
+            # Increase AI speed for corner retrieval
+            ai_speed = AI_SPEED * 1.5
+            
+            # Move directly toward the calculated position
+            dx = target_x - self.x
+            dy = target_y - self.y
+            distance = math.sqrt(dx**2 + dy**2)
+            
+            if distance > 0:
+                self.dx = (dx / distance) * ai_speed
+                self.dy = (dy / distance) * ai_speed
+                
+                # Update position with constraint
+                new_x = self.x + self.dx
+                new_y = self.y + self.dy
+                self.x, self.y = new_x, new_y
+                self.constrain_to_rink(top_half=True)
+                
+            # Skip the rest of the AI logic if in corner mode
+            return []
+        
+        # Predict where puck will intersect AI's y-position
+        if puck.dy > 0:  # Puck moving upward
+            time_to_intersect = (target_y - puck.y) / puck.dy if puck.dy != 0 else 0
+            predicted_x = puck.x + puck.dx * time_to_intersect
+
+            # Keep prediction within bounds
+            predicted_x = max(self.radius, 
+                            min(SCREEN_WIDTH - self.radius, predicted_x))
+
+            # Move towards predicted position
+            if abs(puck.dy) > 1:  # Only if puck moving with significant speed
+                target_x = predicted_x
+
+        # If puck is in AI's half, move to intercept
+        if puck.y > SCREEN_HEIGHT // 2 or self.can_cross_midline:  # Allow crossing midline with power-up
+            dx = puck.x - self.x
+            dy = puck.y - self.y
+            distance = math.sqrt(dx**2 + dy**2)
+
+            if distance > 0:
+                target_x = puck.x
+                target_y = puck.y - self.radius
+                
+                # Adjust aggression based on puck position
+                if puck.y > SCREEN_HEIGHT * 0.75:
+                    # More aggressive when puck is close to AI's goal
+                    target_x = puck.x + puck.dx * AI_AGGRESSION
+                    target_y = puck.y + puck.dy * AI_AGGRESSION
+
+        # Move AI paddle towards target
+        dx = target_x - self.x
+        dy = target_y - self.y
+        distance = math.sqrt(dx**2 + dy**2)
+
+        if distance > 0:
+            # Apply speed boost if power-up is active
+            speed_multiplier = 1.5 if (self.power_up_active and puck.speed_boost) else 1.0
+            
+            # Adjust base speed by difficulty
+            base_speed = AI_SPEED
+            if ai_difficulty == 0:  # Easy
+                base_speed = 5
+            elif ai_difficulty == 2:  # Hard
+                base_speed = 10
+            
+            speed = base_speed * speed_multiplier
+            
+            # Normalize movement vector
+            move_x = (dx / distance) * speed
+            move_y = (dy / distance) * speed
+            
+            # Update position
+            self.x += move_x
+            self.y += move_y
+            
+            # Constrain to boundaries
+            self.constrain_to_rink(top_half=True)
+            
+            # Update velocity for collision physics
+            self.dx = move_x
+            self.dy = move_y
+        
+        return []
         
     def update_player(self, mouse_x, mouse_y):
         """Update player paddle based on mouse position"""
@@ -373,18 +503,14 @@ class Paddle:
         
 class PowerUp:
     def __init__(self, x=None, y=None, power_type=None):
+        # Define radius first so it can be used in position calculations
+        self.radius = 15
+        
         # If coordinates or type not specified, generate random ones
         if x is None or y is None:
-            # Place in center area avoiding edges
-            valid_position = False
-            while not valid_position:
-                test_x = random.randint(SCREEN_WIDTH // 4, 3 * SCREEN_WIDTH // 4)
-                test_y = random.randint(SCREEN_HEIGHT // 4, 3 * SCREEN_HEIGHT // 4)
-                # Make sure it's in a valid position and not too close to corners
-                valid_position = utils.is_valid_position(test_x, test_y, 15)
-            
-            self.x = test_x
-            self.y = test_y
+            # Place on center line
+            self.x = random.randint(self.radius + 10, SCREEN_WIDTH - self.radius - 10)
+            self.y = SCREEN_HEIGHT // 2  # Exactly on the center line
         else:
             self.x = x
             self.y = y
@@ -395,7 +521,6 @@ class PowerUp:
         else:
             self.type = power_type
             
-        self.radius = 15
         self.lifetime = 10  # Power-up disappears after 10 seconds if not collected
         
     def update(self, delta_time):
@@ -419,12 +544,18 @@ class PowerUp:
         if self.type == 'speed':
             # Speed boost affects puck when hit by this paddle
             puck.speed_boost = True
+            # Allow paddle to cross midline with speed power-up
+            paddle.can_cross_midline = True
+            
         elif self.type == 'size':
             # Increase paddle size
             paddle.radius = PADDLE_RADIUS * 1.5
+            
         elif self.type == 'freeze':
-            # Freeze opponent briefly
-            puck.freeze_opponent = True
+            # Freeze opponent paddle for 3 seconds
+            if paddle.opponent_paddle:
+                paddle.opponent_paddle.is_frozen = True
+                paddle.opponent_paddle.freeze_timer = 3.0  # 3 seconds freeze duration
             
     def draw(self):
         """Draw the power-up"""
