@@ -80,66 +80,66 @@ def update_particles(particles, delta_time):
     return particles
 
 def draw_rounded_hockey_rink():
-    """Draw a hockey rink with rounded corners"""
-    # Line width for the corner arcs
-    CORNER_LINE_WIDTH = 6
+    """Draw a hockey rink with basic rounded corners - reliable approach"""
+    # Line width for the rink boundary
+    BORDER_WIDTH = 6
     
-    # Draw straight borders first
+    # Draw the main straight boundaries
     # Top line
     arcade.draw_line(
         CORNER_RADIUS, SCREEN_HEIGHT,
         SCREEN_WIDTH - CORNER_RADIUS, SCREEN_HEIGHT,
-        arcade.color.WHITE, CORNER_LINE_WIDTH
+        arcade.color.WHITE, BORDER_WIDTH
     )
     
     # Bottom line
     arcade.draw_line(
         CORNER_RADIUS, 0,
         SCREEN_WIDTH - CORNER_RADIUS, 0,
-        arcade.color.WHITE, CORNER_LINE_WIDTH
+        arcade.color.WHITE, BORDER_WIDTH
     )
     
     # Left line
     arcade.draw_line(
         0, CORNER_RADIUS,
         0, SCREEN_HEIGHT - CORNER_RADIUS,
-        arcade.color.WHITE, CORNER_LINE_WIDTH
+        arcade.color.WHITE, BORDER_WIDTH
     )
     
     # Right line
     arcade.draw_line(
         SCREEN_WIDTH, CORNER_RADIUS,
         SCREEN_WIDTH, SCREEN_HEIGHT - CORNER_RADIUS,
-        arcade.color.WHITE, CORNER_LINE_WIDTH
+        arcade.color.WHITE, BORDER_WIDTH
     )
     
-    # Draw the corner arcs (slightly larger to overlap with lines)
+    # Draw the corner arcs using arcade's built-in arc function
     # Top-left corner
     arcade.draw_arc_outline(
         CORNER_RADIUS, SCREEN_HEIGHT - CORNER_RADIUS,
         CORNER_RADIUS * 2, CORNER_RADIUS * 2,
-        arcade.color.WHITE, 90, 180, CORNER_LINE_WIDTH
+        arcade.color.WHITE, 90, 180, BORDER_WIDTH
     )
     
     # Top-right corner
     arcade.draw_arc_outline(
         SCREEN_WIDTH - CORNER_RADIUS, SCREEN_HEIGHT - CORNER_RADIUS,
         CORNER_RADIUS * 2, CORNER_RADIUS * 2,
-        arcade.color.WHITE, 0, 90, CORNER_LINE_WIDTH
+        arcade.color.WHITE, 0, 90, BORDER_WIDTH
     )
     
     # Bottom-left corner
     arcade.draw_arc_outline(
         CORNER_RADIUS, CORNER_RADIUS,
         CORNER_RADIUS * 2, CORNER_RADIUS * 2,
-        arcade.color.WHITE, 180, 270, CORNER_LINE_WIDTH
+        arcade.color.WHITE, 180, 270, BORDER_WIDTH
     )
     
     # Bottom-right corner
     arcade.draw_arc_outline(
         SCREEN_WIDTH - CORNER_RADIUS, CORNER_RADIUS,
         CORNER_RADIUS * 2, CORNER_RADIUS * 2,
-        arcade.color.WHITE, 270, 360, CORNER_LINE_WIDTH
+        arcade.color.WHITE, 270, 360, BORDER_WIDTH
     )
     
     # Draw center line

@@ -115,22 +115,40 @@ class AirHockeyGame(arcade.Window):
             utils.draw_rounded_hockey_rink()
             
             # Draw goals
+            # Player goal (bottom)
+            arcade.draw_lrbt_rectangle_filled(
+                left=SCREEN_WIDTH // 2 - GOAL_WIDTH // 2,
+                right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
+                bottom=0,
+                top=GOAL_HEIGHT,
+                color=PADDLE_COLORS[self.settings['player_color']]
+            )
+            # Add outline in the same color
             arcade.draw_lrbt_rectangle_outline(
                 left=SCREEN_WIDTH // 2 - GOAL_WIDTH // 2,
                 right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
                 bottom=0,
                 top=GOAL_HEIGHT,
                 color=PADDLE_COLORS[self.settings['player_color']],
-                border_width=4
+                border_width=2
             )
             
+            # AI goal (top)
+            arcade.draw_lrbt_rectangle_filled(
+                left=SCREEN_WIDTH // 2 - GOAL_WIDTH // 2,
+                right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
+                bottom=SCREEN_HEIGHT - GOAL_HEIGHT,
+                top=SCREEN_HEIGHT,
+                color=PADDLE_COLORS[self.settings['ai_color']]
+            )
+            # Add outline in the same color
             arcade.draw_lrbt_rectangle_outline(
                 left=SCREEN_WIDTH // 2 - GOAL_WIDTH // 2,
                 right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
                 bottom=SCREEN_HEIGHT - GOAL_HEIGHT,
                 top=SCREEN_HEIGHT,
                 color=PADDLE_COLORS[self.settings['ai_color']],
-                border_width=4
+                border_width=2
             )
             
             # Draw paddles
@@ -160,21 +178,25 @@ class AirHockeyGame(arcade.Window):
                     particle['color']
                 )
             
-            # Draw scores
+            # Draw scores - simple version for better performance
+            # Player score
             arcade.draw_text(
-                f"Player: {self.player1_score}",
-                10,
-                10,
+                f"PLAYER: {self.player1_score}",
+                20,
+                20,
                 PADDLE_COLORS[self.settings['player_color']],
-                20
+                20,
+                bold=True
             )
             
+            # AI score
             arcade.draw_text(
                 f"AI: {self.player2_score}",
-                10,
-                SCREEN_HEIGHT - 30,
+                20,
+                SCREEN_HEIGHT - 40,
                 PADDLE_COLORS[self.settings['ai_color']],
-                20
+                20,
+                bold=True
             )
             
             # Draw timer if in time-based mode
