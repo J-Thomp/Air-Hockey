@@ -718,16 +718,18 @@ class PowerUp:
             self.y = y
             
         if power_type is None:
-            power_up_types = ['speed', 'size', 'freeze', 'multi_puck']
+            power_up_types = ['speed', 'size', 'freeze', 'multi_puck', 'goal_shrink', 'repulsor']
             self.type = random.choice(power_up_types)
         else:
             self.type = power_type
             
         self.lifetime = 10  # Power-up disappears after 10 seconds if not collected
+        self.pulse_time = 0  # Time counter for pulsing effect
         
     def update(self, delta_time):
-        """Update power-up lifetime"""
+        """Update power-up lifetime and pulse time"""
         self.lifetime -= delta_time
+        self.pulse_time += delta_time  # Increment the pulse time counter
         return self.lifetime <= 0  # Return True if should be removed
         
     def check_collision(self, paddle):
@@ -742,11 +744,14 @@ class PowerUp:
         """Apply power-up effects to paddle"""
         paddle.power_up_active = True
         
+        # Default power-up duration of 5 seconds for new power-ups
+        power_up_duration = 5.0
+        
         # Set different durations based on power-up type
         if self.type == 'freeze':
             # Freeze is always 3 seconds for balance
             freeze_duration = 3.0
-            paddle.power_up_time = 10.0  # Normal effect duration
+            paddle.power_up_time = power_up_duration
             
             # Freeze opponent paddle
             if paddle.opponent_paddle:
@@ -756,7 +761,19 @@ class PowerUp:
         
         elif self.type == 'multi_puck':
             paddle.multi_puck_active = True
-            paddle.power_up_time = 5.0  # 5 seconds duration
+            paddle.power_up_time = power_up_duration
+        
+        elif self.type == 'goal_shrink':
+            # Shrink opponent's goal
+            if paddle.opponent_paddle:
+                paddle.opponent_paddle.goal_shrink_active = True
+                paddle.opponent_paddle.goal_shrink_timer = power_up_duration
+            paddle.power_up_time = power_up_duration
+        
+        elif self.type == 'repulsor':
+            puck.repulsor_active = True
+            puck.repulsor_owner = paddle
+            paddle.power_up_time = power_up_duration
         
         else:
             # Regular power-up duration for original power-ups
@@ -773,7 +790,8 @@ class PowerUp:
                 paddle.radius = PADDLE_RADIUS * 1.5
             
     def draw(self):
-        """Draw the power-up"""
+        """Draw the power-up with pulsing effect"""
+        # Set color and icon based on type
         if self.type == 'speed':
             color = arcade.color.YELLOW
             icon = "⚡"
@@ -786,32 +804,18 @@ class PowerUp:
         elif self.type == 'multi_puck':
             color = arcade.color.ORANGE
             icon = "◉◉◉"
+        elif self.type == 'goal_shrink':
+            color = arcade.color.PURPLE
+            icon = "⊏⊐"
+        elif self.type == 'repulsor':
+            color = arcade.color.RED
+            icon = "↗"
         else:
             color = arcade.color.WHITE
             icon = "?"
         
-        # Draw background circle
-        arcade.draw_circle_filled(
-            self.x,
-            self.y,
-            self.radius,
-            color
-        )
-        
-        # Draw icon
-        text_size = 14 if self.type == 'multi_puck' else 20
-        arcade.draw_text(
-            icon,
-            self.x,
-            self.y,
-            arcade.color.BLACK,
-            text_size,
-            anchor_x="center",
-            anchor_y="center"
-        )
-            
-        # Add a pulsing effect to make power-ups more noticeable
-        pulse = math.sin(arcade.get_window().game_time * 5) * 0.1 + 1.0
+        # Calculate pulse effect based on pulse_time
+        pulse = math.sin(self.pulse_time * 5) * 0.2 + 1.0  # Pulse between 0.8 and 1.2 scale
         
         # Draw background circle with pulse effect
         arcade.draw_circle_filled(

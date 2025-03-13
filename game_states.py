@@ -1,14 +1,14 @@
 import arcade
 from constants import (
     SCREEN_WIDTH, SCREEN_HEIGHT, PADDLE_COLORS,
-    MENU_STATE, SETTINGS_STATE, PAUSE_STATE, GAME_OVER_STATE
+    MENU_STATE, SETTINGS_STATE, PAUSE_STATE, GAME_OVER_STATE, HOW_TO_PLAY_STATE
 )
 
 class MenuManager:
     def __init__(self):
         # Menu items for each state
         self.menu_items = {
-            MENU_STATE: ["Start Game", "Settings", "Quit"],
+            MENU_STATE: ["Start Game", "How To Play", "Settings", "Quit"],
             SETTINGS_STATE: [
                 "AI Difficulty", 
                 "AI Color", 
@@ -21,7 +21,8 @@ class MenuManager:
                 "Back"
             ],
             PAUSE_STATE: ["Resume", "Restart", "Main Menu"],
-            GAME_OVER_STATE: ["Play Again", "Main Menu"]
+            GAME_OVER_STATE: ["Play Again", "Main Menu"],
+            HOW_TO_PLAY_STATE: ["Back"]
         }
         
         self.selected_item = 0
@@ -52,6 +53,11 @@ class MenuManager:
             anchor_x="center",
             anchor_y="center"
         )
+
+        # Handle How To Play screen
+        if current_state == HOW_TO_PLAY_STATE:
+            self.draw_how_to_play()
+            return
 
         # Get menu items for current state
         menu_items = self.menu_items.get(current_state, [])
@@ -156,6 +162,133 @@ class MenuManager:
                 'width': text_width,
                 'height': text_height
             })
+    
+    def draw_how_to_play(self):
+        """Draw the How To Play screen"""
+        # Title
+        arcade.draw_text(
+            "HOW TO PLAY",
+            SCREEN_WIDTH // 2,
+            SCREEN_HEIGHT * 0.75,
+            arcade.color.WHITE,
+            30,
+            anchor_x="center",
+            anchor_y="center"
+        )
+        
+        # Controls section
+        arcade.draw_text(
+            "CONTROLS:",
+            SCREEN_WIDTH // 2,
+            SCREEN_HEIGHT * 0.65,
+            arcade.color.YELLOW,
+            24,
+            anchor_x="center",
+            anchor_y="center"
+        )
+        
+        # List of controls
+        controls = [
+            "- Mouse: Move paddle",
+            "- ESC: Pause game",
+            "- CTRL+D: Toggle debug view"
+        ]
+        
+        for i, control in enumerate(controls):
+            arcade.draw_text(
+                control,
+                SCREEN_WIDTH // 2,
+                SCREEN_HEIGHT * 0.58 - i * 30,
+                arcade.color.WHITE,
+                18,
+                anchor_x="center",
+                anchor_y="center"
+            )
+        
+        # Power-ups section
+        arcade.draw_text(
+            "POWER-UPS:",
+            SCREEN_WIDTH // 2,
+            SCREEN_HEIGHT * 0.43,
+            arcade.color.YELLOW,
+            24,
+            anchor_x="center",
+            anchor_y="center"
+        )
+        
+        # Draw power-up examples and descriptions
+        power_ups = [
+            {"color": arcade.color.YELLOW, "icon": "⚡", "name": "Speed", "desc": "Cross midline & faster hits"},
+            {"color": arcade.color.GREEN, "icon": "+", "name": "Size", "desc": "Increases paddle size"},
+            {"color": arcade.color.CYAN, "icon": "❄", "name": "Freeze", "desc": "Freezes opponent for 3s"},
+            {"color": arcade.color.ORANGE, "icon": "◉◉◉", "name": "Multi-Puck", "desc": "Creates 3 paddles"}
+        ]
+        
+        for i, power_up in enumerate(power_ups):
+            # Calculate position
+            y_pos = SCREEN_HEIGHT * 0.36 - i * 45
+            
+            # Draw power-up circle
+            arcade.draw_circle_filled(
+                SCREEN_WIDTH // 2 - 100,
+                y_pos,
+                15,
+                power_up["color"]
+            )
+            
+            # Draw inner circle for visual appeal
+            arcade.draw_circle_filled(
+                SCREEN_WIDTH // 2 - 100,
+                y_pos,
+                10,
+                (255, 255, 255, 100)
+            )
+            
+            # Draw power-up icon
+            text_size = 14 if power_up["icon"] == "◉◉◉" else 20
+            arcade.draw_text(
+                power_up["icon"],
+                SCREEN_WIDTH // 2 - 100,
+                y_pos,
+                arcade.color.BLACK,
+                text_size,
+                anchor_x="center",
+                anchor_y="center"
+            )
+            
+            # Draw power-up name and description
+            arcade.draw_text(
+                f"{power_up['name']}: {power_up['desc']}",
+                SCREEN_WIDTH // 2 - 70,
+                y_pos,
+                arcade.color.WHITE,
+                18,
+                anchor_x="left",
+                anchor_y="center"
+            )
+        
+        # Back button
+        back_y_pos = SCREEN_HEIGHT * 0.1
+        arcade.draw_text(
+            "Back",
+            SCREEN_WIDTH // 2,
+            back_y_pos,
+            arcade.color.YELLOW if self.selected_item == 0 else arcade.color.WHITE,
+            24,
+            anchor_x="center",
+            anchor_y="center"
+        )
+        
+        # Store back button position for click detection
+        text_width = len("Back") * 12
+        text_height = 24
+        self.menu_positions.append({
+            'item': 0,
+            'x': SCREEN_WIDTH // 2 - text_width // 2,
+            'y': back_y_pos - text_height // 2,
+            'width': text_width,
+            'height': text_height
+        })
             
     def check_mouse_over_menu(self, x, y):
         """Check if mouse is over a menu item and return its index"""
@@ -173,9 +306,11 @@ class MenuManager:
         if current_state == MENU_STATE:
             if item_index == 0:  # Start Game
                 return "start_game"
-            elif item_index == 1:  # Settings
+            elif item_index == 1:  # How To Play
+                return HOW_TO_PLAY_STATE
+            elif item_index == 2:  # Settings
                 return SETTINGS_STATE
-            elif item_index == 2:  # Quit
+            elif item_index == 3:  # Quit
                 return "quit"
                 
         elif current_state == SETTINGS_STATE and settings:
@@ -220,6 +355,10 @@ class MenuManager:
             if item_index == 0:  # Play Again
                 return "restart_game"
             elif item_index == 1:  # Main Menu
+                return MENU_STATE
+                
+        elif current_state == HOW_TO_PLAY_STATE:
+            if item_index == 0:  # Back
                 return MENU_STATE
                 
         return current_state  # Default: no state change

@@ -26,6 +26,7 @@ GAME_STATE = "game"
 SETTINGS_STATE = "settings"
 GAME_OVER_STATE = "game_over"
 PAUSE_STATE = "pause"
+HOW_TO_PLAY_STATE = "how_to_play"  # Added new state for How To Play screen
 
 # Rink constants
 CORNER_RADIUS = 70  # Radius of the rounded corners
