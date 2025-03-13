@@ -431,6 +431,8 @@ class Paddle:
             
         return False, particles
         
+# Updates to PowerUp class in game_objects.py
+
 class PowerUp:
     def __init__(self, x=None, y=None, power_type=None):
         # Define radius first so it can be used in position calculations
@@ -438,9 +440,15 @@ class PowerUp:
         
         # If coordinates or type not specified, generate random ones
         if x is None or y is None:
-            # Place on center line
-            self.x = random.randint(self.radius + 10, SCREEN_WIDTH - self.radius - 10)
-            self.y = SCREEN_HEIGHT // 2  # Exactly on the center line
+            # Place within the playable area, not just on center line
+            # This makes power-ups appear in more varied locations
+            self.x = random.randint(self.radius + 20, SCREEN_WIDTH - self.radius - 20)
+            
+            # Place power-ups anywhere on the rink (not just center line)
+            # but with bias towards the center line
+            center_line = SCREEN_HEIGHT // 2
+            offset = random.randint(-60, 60)
+            self.y = max(self.radius + 20, min(SCREEN_HEIGHT - self.radius - 20, center_line + offset))
         else:
             self.x = x
             self.y = y
@@ -469,24 +477,31 @@ class PowerUp:
     def apply(self, paddle, puck, duration=10.0):
         """Apply power-up effects to paddle"""
         paddle.power_up_active = True
-        paddle.power_up_time = duration
         
-        if self.type == 'speed':
-            # Speed boost affects puck when hit by this paddle
-            puck.speed_boost = True
-            # Allow paddle to cross midline with speed power-up
-            paddle.can_cross_midline = True
+        # Determine duration based on power-up type
+        if self.type == 'freeze':
+            # Freeze is always 3 seconds for balance
+            freeze_duration = 3.0
+            paddle.power_up_time = 10.0  # Normal effect duration
             
-        elif self.type == 'size':
-            # Increase paddle size
-            paddle.radius = PADDLE_RADIUS * 1.5
-            
-        elif self.type == 'freeze':
-            # Freeze opponent paddle for 3 seconds
+            # Freeze opponent paddle
             if paddle.opponent_paddle:
                 paddle.opponent_paddle.is_frozen = True
-                paddle.opponent_paddle.freeze_timer = 3.0  # 3 seconds freeze duration
+                paddle.opponent_paddle.freeze_timer = freeze_duration
                 puck.freeze_opponent = True  # Mark that freeze is active
+        else:
+            # Regular power-up duration
+            paddle.power_up_time = duration
+            
+            if self.type == 'speed':
+                # Speed boost affects puck when hit by this paddle
+                puck.speed_boost = True
+                # Allow paddle to cross midline with speed power-up
+                paddle.can_cross_midline = True
+                
+            elif self.type == 'size':
+                # Increase paddle size
+                paddle.radius = PADDLE_RADIUS * 1.5
             
     def draw(self):
         """Draw the power-up"""
@@ -503,12 +518,23 @@ class PowerUp:
             color = arcade.color.WHITE
             icon = "?"
             
-        # Draw background circle
+        # Add a pulsing effect to make power-ups more noticeable
+        pulse = math.sin(arcade.get_window().game_time * 5) * 0.1 + 1.0
+        
+        # Draw background circle with pulse effect
         arcade.draw_circle_filled(
             self.x,
             self.y,
-            self.radius,
+            self.radius * pulse,
             color
+        )
+        
+        # Draw inner circle for more visual appeal
+        arcade.draw_circle_filled(
+            self.x,
+            self.y,
+            self.radius * 0.7 * pulse,
+            (255, 255, 255, 100)  # Semi-transparent white
         )
         
         # Draw icon

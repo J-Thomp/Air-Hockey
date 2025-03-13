@@ -57,7 +57,9 @@ class AirHockeyGame(arcade.Window):
             'player_color': "Red",  # Default player color
             'max_score': 7,
             'game_mode': 0,  # 0: Score-based, 1: Time-based
-            'time_limit': 2  # Minutes (only used in time-based mode)
+            'time_limit': 2,  # Minutes (only used in time-based mode)
+            'power_ups_enabled': True,  # Enable/disable power-ups
+            'power_up_frequency': 1  # 0: Low, 1: Medium, 2: High
         }
         
         # Game over message
@@ -403,9 +405,23 @@ class AirHockeyGame(arcade.Window):
             
     def update_power_ups(self, delta_time):
         """Update power-ups and handle power-up collisions"""
-        # Spawn new power-ups periodically
+        # If power-ups are disabled, clear any existing ones and return
+        if not self.settings['power_ups_enabled']:
+            self.power_ups = []
+            return
+        
+        # Spawn new power-ups periodically based on frequency setting
         self.power_up_timer += delta_time
-        if self.power_up_timer > 10 and len(self.power_ups) < 2:  # More frequent spawning (10 seconds) and up to 2 power-ups
+        
+        # Determine spawn time based on frequency setting
+        spawn_times = [15, 10, 5]  # Low, Medium, High (in seconds)
+        spawn_time = spawn_times[self.settings['power_up_frequency']]
+        
+        # Determine maximum number of power-ups based on frequency
+        max_power_ups = [1, 2, 3]  # Low, Medium, High
+        max_count = max_power_ups[self.settings['power_up_frequency']]
+        
+        if self.power_up_timer > spawn_time and len(self.power_ups) < max_count:
             self.power_ups.append(PowerUp())
             self.power_up_timer = 0
         

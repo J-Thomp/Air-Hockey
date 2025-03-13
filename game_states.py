@@ -16,6 +16,8 @@ class MenuManager:
                 "Max Score", 
                 "Game Mode",
                 "Time Limit",
+                "Power-ups",
+                "Power-up Frequency",
                 "Back"
             ],
             PAUSE_STATE: ["Resume", "Restart", "Main Menu"],
@@ -119,6 +121,11 @@ class MenuManager:
                     display_item += f": {modes[settings['game_mode']]}"
                 elif item == "Time Limit":
                     display_item += f": {settings['time_limit']} min"
+                elif item == "Power-ups":
+                    display_item += f": {'On' if settings['power_ups_enabled'] else 'Off'}"
+                elif item == "Power-up Frequency":
+                    frequency_names = ["Low", "Medium", "High"]
+                    display_item += f": {frequency_names[settings['power_up_frequency']]}"
 
             # Draw text for non-color settings or if it hasn't been drawn yet
             if item not in ["AI Color", "Player Color"] or current_state != SETTINGS_STATE:
@@ -187,7 +194,11 @@ class MenuManager:
                 time_limits = [1, 2, 3, 5]
                 current_index = time_limits.index(settings['time_limit']) if settings['time_limit'] in time_limits else 0
                 settings['time_limit'] = time_limits[(current_index + 1) % len(time_limits)]
-            elif item_index == 6:  # Back to main menu
+            elif item_index == 6:  # Power-ups Toggle
+                settings['power_ups_enabled'] = not settings['power_ups_enabled']
+            elif item_index == 7:  # Power-up Frequency
+                settings['power_up_frequency'] = (settings['power_up_frequency'] + 1) % 3
+            elif item_index == 8:  # Back to main menu
                 return MENU_STATE
                 
         elif current_state == PAUSE_STATE:
