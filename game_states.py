@@ -32,11 +32,11 @@ class MenuManager:
         # Clear menu positions
         self.menu_positions = []
 
-        # Title
+        # Title - moved higher up
         arcade.draw_text(
             "AIR HOCKEY",
             SCREEN_WIDTH // 2,
-            SCREEN_HEIGHT * 0.7,
+            SCREEN_HEIGHT * 0.85,  # Moved from 0.7 to 0.85
             arcade.color.BALL_BLUE,
             44,
             anchor_x="center",
@@ -70,11 +70,17 @@ class MenuManager:
 
         # Draw each menu item
         for i, item in enumerate(menu_items):
-            # Position settings menu higher
+            # Position menus
             if current_state == SETTINGS_STATE:
-                y_pos = SCREEN_HEIGHT * 0.6 - i * 50
+                # Settings menu - smaller text and more compact spacing
+                text_size = 22  # Reduced from 30
+                spacing = 35    # Reduced from 50
+                y_pos = SCREEN_HEIGHT * 0.7 - i * spacing  # Moved up from 0.6
             else:
-                y_pos = SCREEN_HEIGHT * 0.4 - i * 50
+                # Main menu and other menus
+                text_size = 30
+                spacing = 50
+                y_pos = SCREEN_HEIGHT * 0.4 - i * spacing
             
             # Determine item color
             if self.selected_item == i:
@@ -97,7 +103,7 @@ class MenuManager:
                         SCREEN_WIDTH // 2,
                         y_pos,
                         PADDLE_COLORS[selected_color],
-                        30,
+                        text_size,  # Use the smaller text size
                         anchor_x="center",
                         anchor_y="center"
                     )
@@ -110,7 +116,7 @@ class MenuManager:
                         SCREEN_WIDTH // 2,
                         y_pos,
                         PADDLE_COLORS[selected_color],
-                        30,
+                        text_size,  # Use the smaller text size
                         anchor_x="center",
                         anchor_y="center"
                     )
@@ -134,14 +140,15 @@ class MenuManager:
                     SCREEN_WIDTH // 2,
                     y_pos,
                     color,
-                    30,
+                    text_size,  # Use the appropriate text size
                     anchor_x="center",
                     anchor_y="center"
                 )
 
             # Store menu item positions for click detection
-            text_width = len(display_item) * 15  # Account for the full text width
-            text_height = 30
+            # Adjust text width calculation based on text size
+            text_width = len(display_item) * (text_size // 2)  # Adjusted text width calculation
+            text_height = text_size
             self.menu_positions.append({
                 'item': i,
                 'x': SCREEN_WIDTH // 2 - text_width // 2,

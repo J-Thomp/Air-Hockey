@@ -23,6 +23,12 @@ class Puck:
         self.speed_boost = False
         self.freeze_opponent = False
         
+        # For repulsor power-up
+        self.repulsor_active = False
+        self.repulsor_owner = None  # Reference to the paddle that activated repulsor
+        self.repulsor_strength = 0.5  # Strength of the repulsion effect
+
+    # Update the update method to handle the repulsor power-up
     def update(self):
         """Update puck position and apply friction"""
         # Calculate new position
@@ -32,6 +38,21 @@ class Puck:
         # Apply friction
         self.dx *= FRICTION
         self.dy *= FRICTION
+        
+        # Apply repulsor effect if active
+        if self.repulsor_active and self.repulsor_owner:
+            # Determine which goal to attract towards based on owner
+            target_y = 0 if self.repulsor_owner.is_ai else SCREEN_HEIGHT
+            
+            # Vector towards target goal
+            attract_dx = 0  # No horizontal attraction
+            attract_dy = target_y - self.y
+            
+            # Normalize and apply attraction
+            attract_distance = math.sqrt(attract_dx**2 + attract_dy**2)
+            if attract_distance > 0:
+                self.dx += (attract_dx / attract_distance) * self.repulsor_strength
+                self.dy += (attract_dy / attract_distance) * self.repulsor_strength
         
         # Apply maximum speed limit
         MAX_SPEED = 75  # Maximum speed for puck (increased from 15 to 75)
@@ -55,6 +76,53 @@ class Puck:
         self.y = new_y
         
         # Trail is disabled
+
+    # Add visualizations for the repulsor in the draw method
+    def draw(self):
+        """Draw the puck with power-up effects"""
+        # Draw repulsor effect if active
+        if self.repulsor_active and self.repulsor_owner:
+            # Determine which goal to attract towards
+            target_y = 0 if self.repulsor_owner.is_ai else SCREEN_HEIGHT
+            
+            # Calculate direction (up or down)
+            direction = 1 if target_y > self.y else -1
+            
+            # Draw an arrow showing the force direction
+            arrow_length = 40
+            end_y = self.y + direction * arrow_length
+            
+            # Use a standard RGB color - RED is (255, 0, 0)
+            arrow_color = (255, 0, 0)  # Explicit RGB values for red
+            
+            # Draw the arrow line
+            arcade.draw_line(
+                self.x, self.y,
+                self.x, end_y,
+                arrow_color,
+                3  # Line width
+            )
+            
+            # Draw arrowhead
+            arrowhead_size = 10
+            point1 = (self.x, end_y)
+            point2 = (self.x - arrowhead_size/2, end_y - direction * arrowhead_size)
+            point3 = (self.x + arrowhead_size/2, end_y - direction * arrowhead_size)
+            
+            arcade.draw_triangle_filled(
+                point1[0], point1[1],
+                point2[0], point2[1],
+                point3[0], point3[1],
+                arrow_color
+            )
+        
+        # Draw puck
+        arcade.draw_circle_filled(
+            self.x,
+            self.y,
+            PUCK_RADIUS,
+            arcade.color.GRAY
+        )
                 
     def handle_boundary_collision(self, sound=None):
         """Handle collision with the rounded rink boundaries"""
@@ -146,18 +214,124 @@ class Puck:
         return collision_happened, particles
     
     def is_in_goal(self):
-        """Check if puck is in either goal"""
+        """Check if puck is in either goal, accounting for shrunk goals"""
+        # Get the base goal width
         GOAL_LEFT = SCREEN_WIDTH // 2 - GOAL_WIDTH // 2
         GOAL_RIGHT = SCREEN_WIDTH // 2 + GOAL_WIDTH // 2
         
+        # Get references to the paddles (if available)
+        player_paddle = getattr(self, 'opponent_paddle', None)
+        ai_paddle = None
+        
+        # Adjust goal width if goal shrink is active
+        player_goal_width = GOAL_WIDTH
+        ai_goal_width = GOAL_WIDTH
+        
+        if hasattr(player_paddle, 'goal_shrink_active') and player_paddle and player_paddle.goal_shrink_active:
+            player_goal_width = GOAL_WIDTH * 0.5
+        
+        if hasattr(self, 'repulsor_owner') and self.repulsor_owner:
+            ai_paddle = self.repulsor_owner if self.repulsor_owner.is_ai else self.repulsor_owner.opponent_paddle
+            
+        if ai_paddle and hasattr(ai_paddle, 'goal_shrink_active') and ai_paddle.goal_shrink_active:
+            ai_goal_width = GOAL_WIDTH * 0.5
+        
+        # Calculate actual goal boundaries
+        PLAYER_GOAL_LEFT = SCREEN_WIDTH // 2 - player_goal_width // 2
+        PLAYER_GOAL_RIGHT = SCREEN_WIDTH // 2 + player_goal_width // 2
+        
+        AI_GOAL_LEFT = SCREEN_WIDTH // 2 - ai_goal_width // 2
+        AI_GOAL_RIGHT = SCREEN_WIDTH // 2 + ai_goal_width // 2
+        
         # Check if puck is completely past the goal line
         if (self.y + PUCK_RADIUS <= 0 and 
-            GOAL_LEFT <= self.x <= GOAL_RIGHT):
+            PLAYER_GOAL_LEFT <= self.x <= PLAYER_GOAL_RIGHT):
             return "AI"  # AI scored
         elif (self.y - PUCK_RADIUS >= SCREEN_HEIGHT and 
-              GOAL_LEFT <= self.x <= GOAL_RIGHT):
+            AI_GOAL_LEFT <= self.x <= AI_GOAL_RIGHT):
             return "PLAYER"  # Player scored
         return None  # No goal
+
+    # Update the update_power_ups method to reset new power-ups when they expire
+    def update_power_ups(self, delta_time):
+        """Update power-ups and handle power-up collisions"""
+        # If power-ups are disabled, clear any existing ones and return
+        if not self.settings['power_ups_enabled']:
+            self.power_ups = []
+            return
+        
+        # Spawn new power-ups periodically based on frequency setting
+        self.power_up_timer += delta_time
+        
+        # Determine spawn time based on frequency setting
+        spawn_times = [15, 10, 5]  # Low, Medium, High (in seconds)
+        spawn_time = spawn_times[self.settings['power_up_frequency']]
+        
+        # Determine maximum number of power-ups based on frequency
+        max_power_ups = [1, 2, 3]  # Low, Medium, High
+        max_count = max_power_ups[self.settings['power_up_frequency']]
+        
+        if self.power_up_timer > spawn_time and len(self.power_ups) < max_count:
+            self.power_ups.append(PowerUp())
+            self.power_up_timer = 0
+        
+        # Update power-up lifetimes
+        for i in range(len(self.power_ups) - 1, -1, -1):
+            if self.power_ups[i].update(delta_time):
+                self.power_ups.pop(i)
+        
+        # Update player paddle power-up timer
+        if self.player1_paddle.power_up_active:
+            self.player1_paddle.power_up_time -= delta_time
+            if self.player1_paddle.power_up_time <= 0:
+                self.player1_paddle.power_up_active = False
+                # Reset player paddle
+                self.player1_paddle.radius = PADDLE_RADIUS
+                self.player1_paddle.can_cross_midline = False
+                self.player1_paddle.multi_puck_active = False  # Reset multi-puck
+                
+                # Reset puck effects
+                if hasattr(self.puck, 'speed_boost'):
+                    self.puck.speed_boost = False
+                if hasattr(self.puck, 'freeze_opponent'):
+                    self.puck.freeze_opponent = False
+                if hasattr(self.puck, 'repulsor_active') and self.puck.repulsor_owner == self.player1_paddle:
+                    self.puck.repulsor_active = False
+                    self.puck.repulsor_owner = None
+        
+        # Update AI paddle power-up timer
+        if self.player2_paddle.power_up_active:
+            self.player2_paddle.power_up_time -= delta_time
+            if self.player2_paddle.power_up_time <= 0:
+                self.player2_paddle.power_up_active = False
+                # Reset AI paddle
+                self.player2_paddle.radius = PADDLE_RADIUS
+                self.player2_paddle.can_cross_midline = False
+                self.player2_paddle.multi_puck_active = False  # Reset multi-puck
+                
+                # Reset puck effects
+                if hasattr(self.puck, 'speed_boost'):
+                    self.puck.speed_boost = False
+                if hasattr(self.puck, 'freeze_opponent'):
+                    self.puck.freeze_opponent = False
+                if hasattr(self.puck, 'repulsor_active') and self.puck.repulsor_owner == self.player2_paddle:
+                    self.puck.repulsor_active = False
+                    self.puck.repulsor_owner = None
+                        
+        # Check for power-up collisions
+        for i in range(len(self.power_ups) - 1, -1, -1):
+            # Check player paddle collision
+            if self.power_ups[i].check_collision(self.player1_paddle):
+                self.power_ups[i].apply(self.player1_paddle, self.puck)
+                arcade.play_sound(self.power_up_sound)
+                self.power_ups.pop(i)
+                continue
+                
+            # Check AI paddle collision
+            if self.power_ups[i].check_collision(self.player2_paddle):
+                self.power_ups[i].apply(self.player2_paddle, self.puck)
+                arcade.play_sound(self.power_up_sound)
+                self.power_ups.pop(i)
     
     def check_stuck(self, delta_time, last_pos, stuck_timer):
         """Check if puck is stuck and apply escape velocity if needed"""
@@ -169,16 +343,8 @@ class Puck:
         """Explicitly check and fix if puck is stuck in corners"""
         # We're disabling this function as it can cause unexpected movement
         return False, []
-    
-    def draw(self):
-        """Draw the puck without trail"""
-        # Draw puck only (no trail)
-        arcade.draw_circle_filled(
-            self.x,
-            self.y,
-            PUCK_RADIUS,
-            arcade.color.GRAY
-        )
+
+# Complete Paddle class with fixed update_player method
 
 class Paddle:
     def __init__(self, is_ai=False):
@@ -192,11 +358,18 @@ class Paddle:
         self.target_y = self.y
         self.power_up_active = False
         self.power_up_time = 0
-        self.can_cross_midline = False  # New property for speed power-up
-        self.is_frozen = False  # New property for freeze power-up
+        self.can_cross_midline = False  # For speed power-up
+        self.is_frozen = False  # For freeze power-up
         self.freeze_timer = 0   # Timer for freeze duration
         self.opponent_paddle = None  # Reference to opponent paddle
-        
+        self.multi_puck_active = False  # For multi-puck power-up
+
+
+        # New properties for additional power-ups
+        self.multi_puck_active = False  # For multi-puck power-up
+        self.goal_shrink_active = False  # For goal shrink power-up
+        self.goal_shrink_timer = 0  # Timer for goal shrink duration
+    
     def on_update(self, delta_time):
         """Update paddle's status effects"""
         # Handle freeze timer
@@ -206,6 +379,13 @@ class Paddle:
                 self.is_frozen = False
                 self.freeze_timer = 0
         
+        # Handle goal shrink timer
+        if self.goal_shrink_active:
+            self.goal_shrink_timer -= delta_time
+            if self.goal_shrink_timer <= 0:
+                self.goal_shrink_active = False
+                self.goal_shrink_timer = 0
+    
     def update_player(self, mouse_x, mouse_y):
         """Update player paddle based on mouse position"""
         # Calculate movement deltas
@@ -349,9 +529,30 @@ class Paddle:
             self.dy = move_y
         
         return []
-        
+    
     def draw(self, color, power_up_active=False):
         """Draw the paddle with optional power-up effects"""
+        # Draw multi-puck effect (3 side-by-side paddles)
+        if self.multi_puck_active:
+            # Calculate positions for side paddles
+            offset = self.radius * 1.8  # Distance between paddle centers
+            
+            # Draw left paddle
+            arcade.draw_circle_filled(
+                self.x - offset,
+                self.y,
+                self.radius * 0.8,  # Slightly smaller
+                color
+            )
+            
+            # Draw right paddle
+            arcade.draw_circle_filled(
+                self.x + offset,
+                self.y,
+                self.radius * 0.8,  # Slightly smaller
+                color
+            )
+        
         # Add glow effect if power-up is active
         if power_up_active:
             # Draw glow
@@ -376,7 +577,7 @@ class Paddle:
         
         # Draw freeze visual indicator if frozen
         if self.is_frozen:
-            # Draw freeze indicator (snowflake symbol or ice effect)
+            # Draw freeze indicator (snowflake symbol)
             arcade.draw_text(
                 "❄",
                 self.x,
@@ -387,19 +588,86 @@ class Paddle:
                 anchor_y="center"
             )
         
+        # Add glow effect if power-up is active
+        if power_up_active:
+            # Draw glow
+            for i in range(3):
+                size_multiplier = 1.1 + (i * 0.1)
+                alpha = 100 - (i * 30)
+                glow_color = (color[0], color[1], color[2], alpha)
+                arcade.draw_circle_filled(
+                    self.x,
+                    self.y,
+                    self.radius * size_multiplier,
+                    glow_color
+                )
+        
+        # Draw the paddle
+        arcade.draw_circle_filled(
+            self.x,
+            self.y,
+            self.radius,
+            color
+        )
+        
+        # Draw freeze visual indicator if frozen
+        if self.is_frozen:
+            # Draw freeze indicator (snowflake symbol)
+            arcade.draw_text(
+                "❄",
+                self.x,
+                self.y,
+                arcade.color.CYAN,
+                20,
+                anchor_x="center",
+                anchor_y="center"
+            )
+    
     def check_collision_with_puck(self, puck, sound=None, paddle_color=arcade.color.WHITE):
         """Check and handle collision with puck"""
+        # Normal collision detection for the main paddle
         dx = puck.x - self.x
         dy = puck.y - self.y
         distance = math.sqrt(dx**2 + dy**2)
+        collision_happened = False
         particles = []
         
+        # Check main paddle collision
         if distance <= self.radius + PUCK_RADIUS:
+            collision_happened = True
+        
+        # Check side paddles if multi-puck is active
+        if self.multi_puck_active and not collision_happened:
+            # Left paddle
+            dx_left = puck.x - (self.x - self.radius * 1.8)
+            dy_left = puck.y - self.y
+            distance_left = math.sqrt(dx_left**2 + dy_left**2)
+            
+            # Right paddle
+            dx_right = puck.x - (self.x + self.radius * 1.8)
+            dy_right = puck.y - self.y
+            distance_right = math.sqrt(dx_right**2 + dy_right**2)
+            
+            # Check if puck collides with either side paddle
+            if distance_left <= self.radius * 0.8 + PUCK_RADIUS:
+                collision_happened = True
+                # Update collision vector to use the left paddle's position
+                dx = dx_left
+                dy = dy_left
+                distance = distance_left
+            elif distance_right <= self.radius * 0.8 + PUCK_RADIUS:
+                collision_happened = True
+                # Update collision vector to use the right paddle's position
+                dx = dx_right
+                dy = dy_right
+                distance = distance_right
+        
+        if collision_happened:
             # Calculate collision angle and normalize the direction
             angle = math.atan2(dy, dx)
             
             # Move puck outside of paddle to prevent sticking
-            overlap = self.radius + PUCK_RADIUS - distance
+            overlap = (self.radius if not self.multi_puck_active else self.radius * 0.8) + PUCK_RADIUS - distance
             puck.x += math.cos(angle) * overlap
             puck.y += math.sin(angle) * overlap
             
@@ -430,8 +698,6 @@ class Paddle:
             return True, particles
             
         return False, particles
-        
-# Updates to PowerUp class in game_objects.py
 
 class PowerUp:
     def __init__(self, x=None, y=None, power_type=None):
@@ -441,11 +707,9 @@ class PowerUp:
         # If coordinates or type not specified, generate random ones
         if x is None or y is None:
             # Place within the playable area, not just on center line
-            # This makes power-ups appear in more varied locations
             self.x = random.randint(self.radius + 20, SCREEN_WIDTH - self.radius - 20)
             
-            # Place power-ups anywhere on the rink (not just center line)
-            # but with bias towards the center line
+            # Place power-ups anywhere on the rink with bias towards center line
             center_line = SCREEN_HEIGHT // 2
             offset = random.randint(-60, 60)
             self.y = max(self.radius + 20, min(SCREEN_HEIGHT - self.radius - 20, center_line + offset))
@@ -454,7 +718,7 @@ class PowerUp:
             self.y = y
             
         if power_type is None:
-            power_up_types = ['speed', 'size', 'freeze']
+            power_up_types = ['speed', 'size', 'freeze', 'multi_puck']
             self.type = random.choice(power_up_types)
         else:
             self.type = power_type
@@ -478,7 +742,7 @@ class PowerUp:
         """Apply power-up effects to paddle"""
         paddle.power_up_active = True
         
-        # Determine duration based on power-up type
+        # Set different durations based on power-up type
         if self.type == 'freeze':
             # Freeze is always 3 seconds for balance
             freeze_duration = 3.0
@@ -489,8 +753,13 @@ class PowerUp:
                 paddle.opponent_paddle.is_frozen = True
                 paddle.opponent_paddle.freeze_timer = freeze_duration
                 puck.freeze_opponent = True  # Mark that freeze is active
+        
+        elif self.type == 'multi_puck':
+            paddle.multi_puck_active = True
+            paddle.power_up_time = 5.0  # 5 seconds duration
+        
         else:
-            # Regular power-up duration
+            # Regular power-up duration for original power-ups
             paddle.power_up_time = duration
             
             if self.type == 'speed':
@@ -514,9 +783,32 @@ class PowerUp:
         elif self.type == 'freeze':
             color = arcade.color.CYAN
             icon = "❄"
+        elif self.type == 'multi_puck':
+            color = arcade.color.ORANGE
+            icon = "◉◉◉"
         else:
             color = arcade.color.WHITE
             icon = "?"
+        
+        # Draw background circle
+        arcade.draw_circle_filled(
+            self.x,
+            self.y,
+            self.radius,
+            color
+        )
+        
+        # Draw icon
+        text_size = 14 if self.type == 'multi_puck' else 20
+        arcade.draw_text(
+            icon,
+            self.x,
+            self.y,
+            arcade.color.BLACK,
+            text_size,
+            anchor_x="center",
+            anchor_y="center"
+        )
             
         # Add a pulsing effect to make power-ups more noticeable
         pulse = math.sin(arcade.get_window().game_time * 5) * 0.1 + 1.0
@@ -538,12 +830,13 @@ class PowerUp:
         )
         
         # Draw icon
+        text_size = 14 if self.type == 'multi_puck' else 20
         arcade.draw_text(
             icon,
             self.x,
             self.y,
             arcade.color.BLACK,
-            20,
+            text_size,
             anchor_x="center",
             anchor_y="center"
         )

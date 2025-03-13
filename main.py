@@ -126,18 +126,28 @@ class AirHockeyGame(arcade.Window):
             utils.draw_rounded_hockey_rink()
             
             # Draw goals
+            # Calculate goal dimensions - handle shrinking
+            player_goal_width = GOAL_WIDTH
+            ai_goal_width = GOAL_WIDTH
+            
+            # Apply goal shrink if active
+            if hasattr(self.player1_paddle, 'goal_shrink_active') and self.player1_paddle.goal_shrink_active:
+                player_goal_width = GOAL_WIDTH * 0.5  # 50% reduction
+            if hasattr(self.player2_paddle, 'goal_shrink_active') and self.player2_paddle.goal_shrink_active:
+                ai_goal_width = GOAL_WIDTH * 0.5  # 50% reduction
+                
             # Player goal (bottom)
             arcade.draw_lrbt_rectangle_filled(
-                left=SCREEN_WIDTH // 2 - GOAL_WIDTH // 2,
-                right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
+                left=SCREEN_WIDTH // 2 - player_goal_width // 2,
+                right=SCREEN_WIDTH // 2 + player_goal_width // 2,
                 bottom=0,
                 top=GOAL_HEIGHT,
                 color=PADDLE_COLORS[self.settings['player_color']]
             )
             # Add outline in the same color
             arcade.draw_lrbt_rectangle_outline(
-                left=SCREEN_WIDTH // 2 - GOAL_WIDTH // 2,
-                right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
+                left=SCREEN_WIDTH // 2 - player_goal_width // 2,
+                right=SCREEN_WIDTH // 2 + player_goal_width // 2,
                 bottom=0,
                 top=GOAL_HEIGHT,
                 color=PADDLE_COLORS[self.settings['player_color']],
@@ -146,16 +156,16 @@ class AirHockeyGame(arcade.Window):
             
             # AI goal (top)
             arcade.draw_lrbt_rectangle_filled(
-                left=SCREEN_WIDTH // 2 - GOAL_WIDTH // 2,
-                right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
+                left=SCREEN_WIDTH // 2 - ai_goal_width // 2,
+                right=SCREEN_WIDTH // 2 + ai_goal_width // 2,
                 bottom=SCREEN_HEIGHT - GOAL_HEIGHT,
                 top=SCREEN_HEIGHT,
                 color=PADDLE_COLORS[self.settings['ai_color']]
             )
             # Add outline in the same color
             arcade.draw_lrbt_rectangle_outline(
-                left=SCREEN_WIDTH // 2 - GOAL_WIDTH // 2,
-                right=SCREEN_WIDTH // 2 + GOAL_WIDTH // 2,
+                left=SCREEN_WIDTH // 2 - ai_goal_width // 2,
+                right=SCREEN_WIDTH // 2 + ai_goal_width // 2,
                 bottom=SCREEN_HEIGHT - GOAL_HEIGHT,
                 top=SCREEN_HEIGHT,
                 color=PADDLE_COLORS[self.settings['ai_color']],
@@ -438,10 +448,16 @@ class AirHockeyGame(arcade.Window):
                 # Reset player paddle
                 self.player1_paddle.radius = PADDLE_RADIUS
                 self.player1_paddle.can_cross_midline = False
+                self.player1_paddle.multi_puck_active = False  # Reset multi-puck
+                
+                # Reset puck effects
                 if hasattr(self.puck, 'speed_boost'):
                     self.puck.speed_boost = False
                 if hasattr(self.puck, 'freeze_opponent'):
                     self.puck.freeze_opponent = False
+                if hasattr(self.puck, 'repulsor_active') and self.puck.repulsor_owner == self.player1_paddle:
+                    self.puck.repulsor_active = False
+                    self.puck.repulsor_owner = None
         
         # Update AI paddle power-up timer
         if self.player2_paddle.power_up_active:
@@ -451,11 +467,17 @@ class AirHockeyGame(arcade.Window):
                 # Reset AI paddle
                 self.player2_paddle.radius = PADDLE_RADIUS
                 self.player2_paddle.can_cross_midline = False
+                self.player2_paddle.multi_puck_active = False  # Reset multi-puck
+                
+                # Reset puck effects
                 if hasattr(self.puck, 'speed_boost'):
                     self.puck.speed_boost = False
                 if hasattr(self.puck, 'freeze_opponent'):
                     self.puck.freeze_opponent = False
-                        
+                if hasattr(self.puck, 'repulsor_active') and self.puck.repulsor_owner == self.player2_paddle:
+                    self.puck.repulsor_active = False
+                    self.puck.repulsor_owner = None
+                    
         # Check for power-up collisions
         for i in range(len(self.power_ups) - 1, -1, -1):
             # Check player paddle collision
