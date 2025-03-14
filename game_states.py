@@ -179,11 +179,11 @@ class MenuManager:
         # Controls section
         arcade.draw_text(
             "CONTROLS:",
-            SCREEN_WIDTH // 2,
+            SCREEN_WIDTH // 2 - 130,  # Shifted left
             SCREEN_HEIGHT * 0.65,
             arcade.color.YELLOW,
-            24,
-            anchor_x="center",
+            22,  # Smaller text
+            anchor_x="left",  # Left-aligned
             anchor_y="center"
         )
         
@@ -197,22 +197,22 @@ class MenuManager:
         for i, control in enumerate(controls):
             arcade.draw_text(
                 control,
-                SCREEN_WIDTH // 2,
-                SCREEN_HEIGHT * 0.58 - i * 30,
+                SCREEN_WIDTH // 2 - 130,  # Shifted left
+                SCREEN_HEIGHT * 0.58 - i * 26,  # Adjusted spacing
                 arcade.color.WHITE,
-                18,
-                anchor_x="center",
+                16,  # Smaller text
+                anchor_x="left",  # Left-aligned
                 anchor_y="center"
             )
         
         # Power-ups section
         arcade.draw_text(
             "POWER-UPS:",
-            SCREEN_WIDTH // 2,
-            SCREEN_HEIGHT * 0.43,
+            SCREEN_WIDTH // 2 - 130,  # Shifted left
+            SCREEN_HEIGHT * 0.45,  # Adjusted position
             arcade.color.YELLOW,
-            24,
-            anchor_x="center",
+            22,  # Smaller text
+            anchor_x="left",  # Left-aligned
             anchor_y="center"
         )
         
@@ -221,34 +221,36 @@ class MenuManager:
             {"color": arcade.color.YELLOW, "icon": "⚡", "name": "Speed", "desc": "Cross midline & faster hits"},
             {"color": arcade.color.GREEN, "icon": "+", "name": "Size", "desc": "Increases paddle size"},
             {"color": arcade.color.CYAN, "icon": "❄", "name": "Freeze", "desc": "Freezes opponent for 3s"},
-            {"color": arcade.color.ORANGE, "icon": "◉◉◉", "name": "Multi-Puck", "desc": "Creates 3 paddles"}
+            {"color": arcade.color.ORANGE, "icon": "◉◉◉", "name": "Multi-Puck", "desc": "Creates 3 paddles"},
+            {"color": arcade.color.PURPLE, "icon": "⊏⊐", "name": "Goal Shrink", "desc": "Shrinks your goal by 50%"},
+            {"color": arcade.color.RED, "icon": "↗", "name": "Repulsor", "desc": "Pulls puck toward opponent"}
         ]
         
         for i, power_up in enumerate(power_ups):
             # Calculate position
-            y_pos = SCREEN_HEIGHT * 0.36 - i * 45
+            y_pos = SCREEN_HEIGHT * 0.38 - i * 30  # Reduced spacing between items
             
             # Draw power-up circle
             arcade.draw_circle_filled(
-                SCREEN_WIDTH // 2 - 100,
+                SCREEN_WIDTH // 2 - 130,  # Shifted left
                 y_pos,
-                15,
+                12,  # Slightly smaller circles
                 power_up["color"]
             )
             
             # Draw inner circle for visual appeal
             arcade.draw_circle_filled(
-                SCREEN_WIDTH // 2 - 100,
+                SCREEN_WIDTH // 2 - 130,  # Shifted left
                 y_pos,
-                10,
+                8,  # Slightly smaller circles
                 (255, 255, 255, 100)
             )
             
             # Draw power-up icon
-            text_size = 14 if power_up["icon"] == "◉◉◉" else 20
+            text_size = 11 if power_up["icon"] == "◉◉◉" else 16  # Smaller icons
             arcade.draw_text(
                 power_up["icon"],
-                SCREEN_WIDTH // 2 - 100,
+                SCREEN_WIDTH // 2 - 130,  # Shifted left
                 y_pos,
                 arcade.color.BLACK,
                 text_size,
@@ -259,16 +261,16 @@ class MenuManager:
             # Draw power-up name and description
             arcade.draw_text(
                 f"{power_up['name']}: {power_up['desc']}",
-                SCREEN_WIDTH // 2 - 70,
+                SCREEN_WIDTH // 2 - 105,  # Shifted left with spacing from icon
                 y_pos,
                 arcade.color.WHITE,
-                18,
+                15,  # Smaller text
                 anchor_x="left",
                 anchor_y="center"
             )
         
         # Back button
-        back_y_pos = SCREEN_HEIGHT * 0.1
+        back_y_pos = SCREEN_HEIGHT * 0.08
         arcade.draw_text(
             "Back",
             SCREEN_WIDTH // 2,
