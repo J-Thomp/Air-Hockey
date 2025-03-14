@@ -7,10 +7,11 @@ import arcade
 from constants import (
     SCREEN_WIDTH, SCREEN_HEIGHT, SCREEN_TITLE, GOAL_WIDTH, GOAL_HEIGHT,
     MENU_STATE, GAME_STATE, SETTINGS_STATE, GAME_OVER_STATE, PAUSE_STATE, HOW_TO_PLAY_STATE,
-    PADDLE_COLORS, PADDLE_RADIUS
+    PADDLE_COLORS, PADDLE_RADIUS, PUCK_RADIUS, CORNER_RADIUS
 )
 import utils
-from game_objects import Puck, Paddle, PowerUp
+from game_objects import Puck, Paddle
+from power_ups import PowerUp
 from game_states import MenuManager
 
 class AirHockeyGame(arcade.Window):
@@ -115,7 +116,7 @@ class AirHockeyGame(arcade.Window):
         """Render the screen"""
         self.clear()
         
-        if self.current_state in [MENU_STATE, SETTINGS_STATE, PAUSE_STATE, GAME_OVER_STATE]:
+        if self.current_state in [MENU_STATE, SETTINGS_STATE, PAUSE_STATE, GAME_OVER_STATE, HOW_TO_PLAY_STATE]:
             self.menu_manager.draw_menu(
                 self.current_state,
                 self.settings,
@@ -130,7 +131,7 @@ class AirHockeyGame(arcade.Window):
             player_goal_width = GOAL_WIDTH
             ai_goal_width = GOAL_WIDTH
             
-            # Apply goal shrink if active
+            # Apply goal shrink if active - each player's goal shrink affects their OWN goal
             if hasattr(self.player1_paddle, 'goal_shrink_active') and self.player1_paddle.goal_shrink_active:
                 player_goal_width = GOAL_WIDTH * 0.5  # 50% reduction
             if hasattr(self.player2_paddle, 'goal_shrink_active') and self.player2_paddle.goal_shrink_active:
@@ -246,33 +247,33 @@ class AirHockeyGame(arcade.Window):
             # Draw corner valid area
             arcade.draw_circle_outline(
                 corner_x, corner_y, 
-                utils.CORNER_RADIUS - self.puck.radius, 
+                CORNER_RADIUS - PUCK_RADIUS, 
                 arcade.color.RED, 1
             )
             
             # Draw corner region bounds
             if corner_x < SCREEN_WIDTH // 2:  # Left side
                 arcade.draw_line(
-                    utils.CORNER_RADIUS, corner_y,
+                    CORNER_RADIUS, corner_y,
                     0, corner_y,
                     arcade.color.YELLOW, 1
                 )
             else:  # Right side
                 arcade.draw_line(
-                    SCREEN_WIDTH - utils.CORNER_RADIUS, corner_y,
+                    SCREEN_WIDTH - CORNER_RADIUS, corner_y,
                     SCREEN_WIDTH, corner_y,
                     arcade.color.YELLOW, 1
                 )
                 
             if corner_y < SCREEN_HEIGHT // 2:  # Bottom side
                 arcade.draw_line(
-                    corner_x, utils.CORNER_RADIUS,
+                    corner_x, CORNER_RADIUS,
                     corner_x, 0,
                     arcade.color.YELLOW, 1
                 )
             else:  # Top side
                 arcade.draw_line(
-                    corner_x, SCREEN_HEIGHT - utils.CORNER_RADIUS,
+                    corner_x, SCREEN_HEIGHT - CORNER_RADIUS,
                     corner_x, SCREEN_HEIGHT,
                     arcade.color.YELLOW, 1
                 )
@@ -432,6 +433,7 @@ class AirHockeyGame(arcade.Window):
         max_count = max_power_ups[self.settings['power_up_frequency']]
         
         if self.power_up_timer > spawn_time and len(self.power_ups) < max_count:
+            # Create a new power-up that will only spawn on the center line
             self.power_ups.append(PowerUp())
             self.power_up_timer = 0
         
@@ -449,6 +451,7 @@ class AirHockeyGame(arcade.Window):
                 self.player1_paddle.radius = PADDLE_RADIUS
                 self.player1_paddle.can_cross_midline = False
                 self.player1_paddle.multi_puck_active = False  # Reset multi-puck
+                self.player1_paddle.goal_shrink_active = False  # Reset goal shrink
                 
                 # Reset puck effects
                 if hasattr(self.puck, 'speed_boost'):
@@ -468,6 +471,7 @@ class AirHockeyGame(arcade.Window):
                 self.player2_paddle.radius = PADDLE_RADIUS
                 self.player2_paddle.can_cross_midline = False
                 self.player2_paddle.multi_puck_active = False  # Reset multi-puck
+                self.player2_paddle.goal_shrink_active = False  # Reset goal shrink
                 
                 # Reset puck effects
                 if hasattr(self.puck, 'speed_boost'):
@@ -498,7 +502,7 @@ class AirHockeyGame(arcade.Window):
         self.mouse_x = x
         self.mouse_y = y
         
-        if self.current_state in [MENU_STATE, SETTINGS_STATE, PAUSE_STATE, GAME_OVER_STATE]:
+        if self.current_state in [MENU_STATE, SETTINGS_STATE, PAUSE_STATE, GAME_OVER_STATE, HOW_TO_PLAY_STATE]:
             # Update selected menu item based on mouse position
             hovered_item = self.menu_manager.check_mouse_over_menu(x, y)
             if hovered_item is not None and hovered_item != self.menu_manager.selected_item:
@@ -507,7 +511,7 @@ class AirHockeyGame(arcade.Window):
     def on_mouse_press(self, x, y, button, modifiers):
         """Called when the mouse buttons are pressed"""
         if button == arcade.MOUSE_BUTTON_LEFT:
-            if self.current_state in [MENU_STATE, SETTINGS_STATE, PAUSE_STATE, GAME_OVER_STATE]:
+            if self.current_state in [MENU_STATE, SETTINGS_STATE, PAUSE_STATE, GAME_OVER_STATE, HOW_TO_PLAY_STATE]:
                 clicked_item = self.menu_manager.check_mouse_over_menu(x, y)
                 
                 if clicked_item is not None:
@@ -541,7 +545,7 @@ class AirHockeyGame(arcade.Window):
                 self.current_state = PAUSE_STATE
                 self.timer_active = False
                 self.menu_manager.selected_item = 0
-        elif self.current_state in [MENU_STATE, SETTINGS_STATE, PAUSE_STATE, GAME_OVER_STATE]:
+        elif self.current_state in [MENU_STATE, SETTINGS_STATE, PAUSE_STATE, GAME_OVER_STATE, HOW_TO_PLAY_STATE]:
             if key == arcade.key.UP:
                 if self.menu_manager.selected_item is None:
                     self.menu_manager.selected_item = 0
